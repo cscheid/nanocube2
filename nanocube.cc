@@ -1,9 +1,43 @@
 #include "nanocube.hh"
 
+namespace {
+  
 inline int get_bit(int value, int bit)
 {
   return (value >> bit) & 1;
 }
+
+};
+
+/******************************************************************************/
+// Simple accessors
+
+template <typename Summary>
+inline int Nanocube<Summary>::get_summary_index(int node_index, int dim)
+{
+  // a null node should always return a null summary.
+  if (node_index == -1) {
+    return -1;
+  }
+  // otherwise, walk the "next" chain of pointers until we get to the summary table
+  do {
+    node_index = dims.at(dim).at(node_index);
+    ++dim;
+  } while (dim < dims.length);
+  return node_index;
+};
+
+template <typename Summary>
+inline pair<int, int> Nanocube<Summary>::get_children(int node_index, int dim)
+{
+  if (node_index == -1) {
+    return make_pair(-1, -1);
+  } else {
+    return dims.at(dim).children.at(node_index);
+  }
+}
+
+/******************************************************************************/
 
 template <typename Summary>
 set<int> Nanocube<Summary>::next_indices
@@ -23,31 +57,6 @@ set<int> Nanocube<Summary>::next_indices
   }
   return result;
 };
-
-template <typename Summary>
-int Nanocube<Summary>::get_summary_index(int node_index, int dim)
-{
-  // a null node should always return a null summary.
-  if (node_index == -1) {
-    return -1;
-  }
-  // otherwise, walk the "next" chain of pointers until we get to the summary table
-  do {
-    node_index = dims.at(dim).at(node_index);
-    ++dim;
-  } while (dim < dims.length);
-  return node_index;
-};
-
-template <typename Summary>
-pair<int, int> Nanocube<Summary>::get_children(int node_index, int dim)
-{
-  if (node_index == -1) {
-    return make_pair(-1, -1);
-  } else {
-    return dims.at(dim).children.at(node_index);
-  }
-}
   
 
 // insert_node returns a pair of node indices: the first element is
