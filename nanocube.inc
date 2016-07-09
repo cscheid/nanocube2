@@ -72,7 +72,6 @@ template <typename T>
 map<int, int> RefCountedVec<T>::compact()
 {
   map<int, int> result;
-  sort(free_list.begin(), free_list.end());
   bool b = sorted_array_has_no_duplicates(free_list);
   assert(b);
   int values_i = values.size() - 1;
@@ -165,8 +164,12 @@ int Nanocube<Summary>::release_node_ref(int node_index, int dim)
 // different data points)
 template <typename Summary>
 pair<int, int> Nanocube<Summary>::insert_node
-(const Summary &summary, const vector<int> &addresses, int current_node_index, int dim, int bit)
+(const Summary &summary, const vector<int> &addresses, int current_node_index, int dim, int bit,
+ map<int, int> &summary_cache)
 {
+  cout << "Entering index:" << current_node_index
+       << " dim:" << dim
+       << " depth:" << bit << endl;
   assert(dims.size() == addresses.size());
   if (dim == dims.size()) {
     cout << "Will insert summary" << endl;
@@ -176,15 +179,37 @@ pair<int, int> Nanocube<Summary>::insert_node
     // for the last dimension, the summary index is both the index of the
     // inserted node, and the summary index itself.
     if (current_node_index == -1) {
-      int new_ref = summaries.insert(summary);
-      cout << "New summary at " << new_ref << endl;
-      return make_pair(new_ref, new_ref);
+      auto f = summary_cache.find(-1);
+      if (f == summary_cache.end()) {
+        // forced summary insertion
+        cout << "forced atomic summary insertion" << endl;
+        int new_ref = summaries.insert(summary);
+        cout << "New summary at " << new_ref << endl;
+        summary_cache[-1] = new_ref;
+        return make_pair(new_ref, new_ref);
+      } else {
+        int summary_ref = f->second;
+        cout << "summary cache hit for fresh insertion at " << summary_ref << endl;
+        summaries.make_ref(summary_ref);
+        return make_pair(summary_ref, summary_ref);
+      }
     } else {
       cout << "Existing summary at " << current_node_index << endl;
-      const Summary &other_summary = summaries.values.at(current_node_index);
-      Summary new_summary = other_summary + summary;
-      int new_ref = summaries.insert(new_summary);
-      return make_pair(new_ref, new_ref);
+      auto f = summary_cache.find(current_node_index);
+      if (f == summary_cache.end()) {
+        cout << "forced composite summary insertion" << endl;
+        const Summary &other_summary = summaries.values.at(current_node_index);
+        Summary new_summary = other_summary + summary;
+        int new_ref = summaries.insert(new_summary);
+        summary_cache[current_node_index] = new_ref;
+        cout << "New summary (from " << current_node_index << ") at " << new_ref << endl;
+        return make_pair(new_ref, new_ref);
+      } else {
+        int summary_ref = f->second;
+        cout << "summary cache hit for fresh insertion at " << summary_ref << endl;
+        summaries.make_ref(summary_ref);
+        return make_pair(summary_ref, summary_ref);
+      }
     }
   }
   assert(dim < dims.size());
@@ -195,14 +220,14 @@ pair<int, int> Nanocube<Summary>::insert_node
   int width = nc_dim.width;
   pair<int, int> recursion_result;
   if (bit == width) {
-    cout << "At bottom of refinement tree " << current_node_index << " " << dim << " " << bit << endl;
+    cout << "At bottom of refinement tree. index:" << current_node_index << " dim:" << dim << " depth:" << bit << endl;
     // we're at the bottom of the refinement tree.
     
     assert(current_node.left == current_node.right && current_node.left == -1);
 
     // recurse into the next dimension
     cout << "recursing into next dimension" << endl;
-    recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0);
+    recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0, summary_cache);
     cout << "out of next-dim recursion" << endl;
 
     if (current_node_index == -1) {
@@ -241,7 +266,7 @@ pair<int, int> Nanocube<Summary>::insert_node
     
     // recurse down the refinement tree
     cout << "recurse down the refinement tree" << endl;
-    recursion_result = insert_node(summary, addresses, refinement_node, dim, bit+1);
+    recursion_result = insert_node(summary, addresses, refinement_node, dim, bit+1, summary_cache);
     cout << "out of ref-tree recursion" << endl;
     NCDimNode &recursion_result_node = nc_dim.at(recursion_result.first);
 
@@ -306,7 +331,7 @@ pair<int, int> Nanocube<Summary>::insert_node
       // now we must update the next pointer as well, and that requires another
       // recursive insertion, because no sharing exists.
 
-      pair<int, int> next_recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0);
+      pair<int, int> next_recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0, summary_cache);
 
       // now we check for reference updates in the same way as the above checks for
       // left and right, except that we check the next pointer.
@@ -322,7 +347,7 @@ pair<int, int> Nanocube<Summary>::insert_node
              (current_node.left != -1 && current_node.right == -1));
       cout << "we had one child " << current_node.left << " " << current_node.right << endl;
       // we had exactly one child.
-
+      
       if (where_to_insert) {
         // insertion happened on the right, need to update right child
         // if recursion_result.first is equal to current_node.right, we
@@ -345,7 +370,9 @@ pair<int, int> Nanocube<Summary>::insert_node
       // if, *after the insertion*, we have two children,
       // then we need a recursive call to next at this depth.
       if (nc_dim.at(current_node_index).left != -1 && nc_dim.at(current_node_index).right != -1) {
-        pair<int, int> next_recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0);
+        cout << "into internal dimension recursion" << endl;
+        pair<int, int> next_recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0, summary_cache);
+        cout << "out of internal dimension recursion" << endl;
         if (next_recursion_result.first != current_node.next) {
           release_node_ref(current_node.next, dim+1);
           nc_dim.at(current_node_index).next = next_recursion_result.first;
@@ -367,7 +394,8 @@ template <typename Summary>
 void Nanocube<Summary>::insert
 (const Summary &summary, const vector<int> &addresses)
 {
-  pair<int, int> result = insert_node(summary, addresses, base_root, 0, 0);
+  map<int, int> summary_cache;
+  pair<int, int> result = insert_node(summary, addresses, base_root, 0, 0, summary_cache);
   base_root = result.first;
 }
 
@@ -414,18 +442,21 @@ void Nanocube<Summary>::dump_internals()
   cout << "Root node:" << base_root << endl;
   for (int i=0; i<dims.size(); ++i) {
     cout << "Dimension " << i << endl;
-    cout << "\tleft\tright\tnext" << endl;
+    cout << "\trc\tleft\tright\tnext" << endl;
     RefCountedVec<NCDimNode> &vec = dims.at(i).nodes;
     for (int j=0; j<vec.values.size(); ++j) {
-      cout << "\t" << vec.values.at(j).left
+      cout << "\t" << vec.ref_counts.at(j)
+           << "\t" << vec.values.at(j).left
            << "\t" << vec.values.at(j).right
            << "\t" << vec.values.at(j).next << endl;
     }
     cout << endl;
   }
   cout << "Summaries" << endl;
+  cout << "\trc\tvalue" << endl;
   for (int i=0; i<summaries.values.size(); ++i) {
-    cout << summaries.values.at(i) << endl;
+    cout << "\t" << summaries.ref_counts.at(i)
+         << "\t" << summaries.values.at(i) << endl;
   }
 }
 

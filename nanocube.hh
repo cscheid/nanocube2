@@ -51,7 +51,7 @@ struct NCDim {
 template <typename Summary>
 struct Nanocube {
   pair<int, int> insert_node
-  (const Summary &summary, const vector<int> &addresses, int current_node, int current_dim, int current_bit);
+  (const Summary &summary, const vector<int> &addresses, int current_node, int current_dim, int current_bit, std::map<int, int> &summary_cache);
 
   void insert(const Summary &summary, const vector<int> &addresses);
 
