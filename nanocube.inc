@@ -169,21 +169,23 @@ pair<int, int> Nanocube<Summary>::insert_node
 {
   assert(dims.size() == addresses.size());
   if (dim == dims.size()) {
+    cout << "Will insert summary" << endl;
     // we're done inserting things on the nanocube itself.
     // all we need to do is add the summary to the summary vector
 
+    // for the last dimension, the summary index is both the index of the
+    // inserted node, and the summary index itself.
     if (current_node_index == -1) {
       int new_ref = summaries.insert(summary);
+      cout << "New summary at " << new_ref << endl;
       return make_pair(new_ref, new_ref);
     } else {
+      cout << "Existing summary at " << current_node_index << endl;
       const Summary &other_summary = summaries.values.at(current_node_index);
       Summary new_summary = other_summary + summary;
       int new_ref = summaries.insert(new_summary);
       return make_pair(new_ref, new_ref);
     }
-    
-    // for the last dimension, the summary index is both the index of the
-    // inserted node, and the summary index itself.
   }
   assert(dim < dims.size());
   
@@ -193,20 +195,25 @@ pair<int, int> Nanocube<Summary>::insert_node
   int width = nc_dim.width;
   pair<int, int> recursion_result;
   if (bit == width) {
+    cout << "At bottom of refinement tree " << current_node_index << " " << dim << " " << bit << endl;
     // we're at the bottom of the refinement tree.
     
     assert(current_node.left == current_node.right && current_node.left == -1);
 
     // recurse into the next dimension
+    cout << "recursing into next dimension" << endl;
     recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0);
+    cout << "out of next-dim recursion" << endl;
 
     if (current_node_index == -1) {
       // we're inserting into a new address.
+      cout << "Inserting into a new address" << endl;
       NCDimNode new_node_at_current_dim { -1, -1, recursion_result.first };
       int new_index = nc_dim.nodes.insert(new_node_at_current_dim);
       return make_pair(new_index, recursion_result.second);
     } else {
       // we're inserting into an existing address.
+      cout << "Inserting into an existing address" << endl;
       assert(current_node.next != -1);
 
       // but we're at the bottom of the refinement tree.
@@ -220,20 +227,28 @@ pair<int, int> Nanocube<Summary>::insert_node
     }
   } else {
     // we're in the interior of the refinement tree
+    cout << "Inside the refinement tree" << endl;
     
-    int next_node;
-    if (get_bit(current_address, width-bit-1)) {
-      next_node = current_node.right;
+    int refinement_node;
+    int where_to_insert = get_bit(current_address, width-bit-1);
+    if (where_to_insert) {
+      cout << "Recursing right" << endl;
+      refinement_node = current_node.right;
     } else {
-      next_node = current_node.left;
+      cout << "Recursing left" << endl;
+      refinement_node = current_node.left;
     }
     
     // recurse down the refinement tree
-    recursion_result = insert_node(summary, addresses, next_node, dim, bit+1);
+    cout << "recurse down the refinement tree" << endl;
+    recursion_result = insert_node(summary, addresses, refinement_node, dim, bit+1);
+    cout << "out of ref-tree recursion" << endl;
     NCDimNode &recursion_result_node = nc_dim.at(recursion_result.first);
 
     // now we do a case analysis on the number of children we had before the insertion.
     if (current_node.left == -1 && current_node.right == -1) {
+      cout << "we had no children" << endl;
+      
       // we had no children, but we were an interior node.
       // this means we're actually a ghost node (because all addresses have the same depth,
       // and so all leaves must be at the bottom of the tree)
@@ -259,6 +274,7 @@ pair<int, int> Nanocube<Summary>::insert_node
       
       return make_pair(new_index, recursion_result.second);
     } else if (current_node.left != -1 && current_node.right != -1) {
+      cout << "we had two children" << endl;
       // we had two children. 
 
       // // two children means we need a new summary, because no sharing is possible in this case.
@@ -290,7 +306,7 @@ pair<int, int> Nanocube<Summary>::insert_node
       // now we must update the next pointer as well, and that requires another
       // recursive insertion, because no sharing exists.
 
-      pair<int, int> next_recursion_result = insert_node(summary, addresses, next_node, dim+1, 0);
+      pair<int, int> next_recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0);
 
       // now we check for reference updates in the same way as the above checks for
       // left and right, except that we check the next pointer.
@@ -304,9 +320,10 @@ pair<int, int> Nanocube<Summary>::insert_node
     } else {
       assert((current_node.left == -1 && current_node.right != -1) ||
              (current_node.left != -1 && current_node.right == -1));
+      cout << "we had one child " << current_node.left << " " << current_node.right << endl;
       // we had exactly one child.
 
-      if (bit) {
+      if (where_to_insert) {
         // insertion happened on the right, need to update right child
         // if recursion_result.first is equal to current_node.right, we
         // don't need to change references, because we're still going to refer
@@ -328,7 +345,7 @@ pair<int, int> Nanocube<Summary>::insert_node
       // if, *after the insertion*, we have two children,
       // then we need a recursive call to next at this depth.
       if (nc_dim.at(current_node_index).left != -1 && nc_dim.at(current_node_index).right != -1) {
-        pair<int, int> next_recursion_result = insert_node(summary, addresses, next_node, dim+1, 0);
+        pair<int, int> next_recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0);
         if (next_recursion_result.first != current_node.next) {
           release_node_ref(current_node.next, dim+1);
           nc_dim.at(current_node_index).next = next_recursion_result.first;
