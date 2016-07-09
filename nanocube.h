@@ -1,36 +1,17 @@
 #pragma once
 
+// Copyright 2016 Arizona Board of Regents. See README.md and LICENSE for more.
+
 #include <vector>
 #include <utility>
 #include <set>
 #include <map>
 #include <cassert>
+#include <fstream>
+
+#include "ref_counted_vec.h"
 
 using namespace std;
-
-template <typename T>
-struct RefCountedVec {
-
-  // add a reference to an existing value. returns new reference count
-  int make_ref(int index);
-
-  // remove a reference from an existing value. returns new reference count
-  int release_ref(int index);
-
-  // insert fresh value and return index of reference to it. Returns reference
-  // (*not* count, but rather the index)
-  int insert(const T &value);
-
-  // compacts the vector, ensuring that free_list.size() == 0 after the call.
-
-  // returns the transposition map of the compaction. It's the responsibility
-  // of the caller to update upstream references
-  map<int, int> compact();
-  
-  vector<T> values;
-  vector<int> ref_counts;
-  vector<int> free_list;
-};
 
 struct NCDimNode {
   NCDimNode() {};
@@ -65,7 +46,7 @@ struct Nanocube {
   int release_node_ref(int node_index, int dim);
   void compact();
 
-  void dump_internals();
+  void dump_internals(bool force_print=false);
   
   /****************************************************************************/
   // members
@@ -73,7 +54,11 @@ struct Nanocube {
   vector<NCDim> dims;
   RefCountedVec<Summary> summaries;
 
-  explicit Nanocube(const vector<int> &widths);
+  explicit Nanocube(const vector<int> &widths, bool debug=false);
+
+ private:
+  std::ofstream unopened;
+  ostream &debug_out;
 };
 
 #include "nanocube.inc"
