@@ -3,12 +3,40 @@
 #include <vector>
 #include <utility>
 #include <set>
+#include <map>
 
 using namespace std;
 
+template <typename T>
+struct RefCountedSummaryVec {
+
+  // add a reference to an existing value. returns new reference count
+  int make_ref(int index);
+
+  // remove a reference from an existing value. returns new reference count
+  int release_ref(int index);
+
+  // insert fresh value and return index of reference to it. Returns reference
+  // (*not* count, but rather the index)
+  int insert(const T &value);
+
+  // compacts the vector, ensuring that free_list.size() == 0 after the call.
+
+  // returns the transposition map of the compaction. It's the responsibility
+  // of the caller to update upstream references
+  map<int, int> compact();
+  
+  vector<T> values;
+  vector<int> ref_counts;
+  vector<int> free_list;
+};
+
+struct NCDimNode {
+  int left, int right, int next;
+};
+  
 struct NCDim {
-  vector <int> next;
-  vector < pair<int,int> > refine;
+  RefCountedVec<NCDimNode> nodes;
   int width;
 };
 
@@ -20,7 +48,8 @@ struct Nanocube {
   int insert_dim(Summary &, vector<int> &addresses,
                  int root, int dim);
   pair<int, int> insert_node
-  (Summary &summary, vector<int> &addresses, int dim, int current_node, int current_address, int current_bit);
+  (Summary &summary, vector<int> &addresses,
+   int current_node, int current_dim, int current_bit);
 
   /****************************************************************************/
   // simple accessors
@@ -31,6 +60,6 @@ struct Nanocube {
   // members
   int base_root;
   vector<NCDim> dims;
-  vector<Summary> summaries;
+  RefCountedVec<Summary> summaries;
 };
 
