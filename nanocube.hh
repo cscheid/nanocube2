@@ -4,11 +4,12 @@
 #include <utility>
 #include <set>
 #include <map>
+#include <cassert>
 
 using namespace std;
 
 template <typename T>
-struct RefCountedSummaryVec {
+struct RefCountedVec {
 
   // add a reference to an existing value. returns new reference count
   int make_ref(int index);
@@ -32,34 +33,47 @@ struct RefCountedSummaryVec {
 };
 
 struct NCDimNode {
-  int left, int right, int next;
+  NCDimNode() {};
+  NCDimNode(const NCDimNode &other): left(other.left), right(other.right), next(other.next) {};
+  NCDimNode(int l, int r, int n): left(l), right(r), next(n) {};
+
+  int left, right, next;
 };
   
 struct NCDim {
   RefCountedVec<NCDimNode> nodes;
   int width;
+  inline NCDimNode &at(int i) { return nodes.values.at(i); };
+  inline const NCDimNode &at(int i) const { return nodes.values.at(i); };
+  inline size_t size() const { return nodes.values.size(); };
 };
 
 template <typename Summary>
 struct Nanocube {
-  void insert(Summary &, vector<int> &);
-  set<int> next_indices(int root_index,
-                        int address, int dim);
-  int insert_dim(Summary &, vector<int> &addresses,
-                 int root, int dim);
   pair<int, int> insert_node
-  (Summary &summary, vector<int> &addresses,
-   int current_node, int current_dim, int current_bit);
+  (const Summary &summary, const vector<int> &addresses, int current_node, int current_dim, int current_bit);
+
+  void insert(const Summary &summary, const vector<int> &addresses);
 
   /****************************************************************************/
   // simple accessors
   inline int get_summary_index(int node_index, int dim);
-  inline pair<int, int> Nanocube<Summary>::get_children(int node_index, int dim);
+  inline NCDimNode get_children(int node_index, int dim);
 
+  /****************************************************************************/
+  // utility
+  int release_node_ref(int node_index, int dim);
+  void compact();
+
+  void dump_internals();
+  
   /****************************************************************************/
   // members
   int base_root;
   vector<NCDim> dims;
   RefCountedVec<Summary> summaries;
+
+  explicit Nanocube(const vector<int> &widths);
 };
 
+#include "nanocube.inc"
