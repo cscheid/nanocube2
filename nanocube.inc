@@ -203,8 +203,8 @@ pair<int, int> Nanocube<Summary>::insert_node
       }
 
       NCDimNode node_we_will_insert(
-         (!bit) ? recursion_result.first : -1,
-         ( bit) ? recursion_result.first : -1,
+         (!where_to_insert) ? recursion_result.first : -1,
+         ( where_to_insert) ? recursion_result.first : -1,
          recursion_result_node.next);
       int new_index = nc_dim.nodes.insert(node_we_will_insert);
       
@@ -220,7 +220,7 @@ pair<int, int> Nanocube<Summary>::insert_node
       // T new_summary = summaries.at(recursion_result.second) + summaries.at(other_summary_index);
       // int new_summary_index = summaries.insert(new_summary);
 
-      if (bit) {
+      if (where_to_insert) {
         // insertion happened on the right, need to update right child
         // if recursion_result.first is equal to current_node.right, we
         // don't need to change references, because we're still going to refer
