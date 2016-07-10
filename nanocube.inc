@@ -24,7 +24,7 @@ inline int Nanocube<Summary>::get_summary_index(int node_index, int dim)
   }
   // otherwise, walk the "next" chain of pointers until we get to the summary table
   do {
-    node_index = dims.at(dim).at(node_index);
+    node_index = dims.at(dim).at(node_index).next;
     ++dim;
   } while (dim < dims.size());
   return node_index;
@@ -279,16 +279,23 @@ pair<int, int> Nanocube<Summary>::insert_node
       }
 
       // if, *after the insertion*, we have two children,
-      // then we need a recursive call to next at this depth.
+      // then we need a merge of the next nodes.
       if (nc_dim.at(current_node_index).left != -1 && nc_dim.at(current_node_index).right != -1) {
-        debug_out << "into internal dimension recursion" << endl;
-        pair<int, int> next_recursion_result = insert_node(summary, addresses, current_node.next, dim+1, 0, summary_cache);
-        debug_out << "out of internal dimension recursion" << endl;
-        if (next_recursion_result.first != current_node.next) {
+        // "merging"
+
+        int left_next = nc_dim.at(nc_dim.at(current_node_index).left).next,
+           right_next = nc_dim.at(nc_dim.at(current_node_index).right).next;
+        debug_out << "Merging left:" << left_next << " right:" << right_next << " dim:" << dim+1;
+
+        pair<int, int> merge_result = merge(left_next, right_next, dim+1);
+
+        debug_out << "Out of merge" << endl;
+        
+        if (merge_result.first != current_node.next) {
           release_node_ref(current_node.next, dim+1);
-          nc_dim.at(current_node_index).next = next_recursion_result.first;
+          nc_dim.at(current_node_index).next = merge_result.first;
         }
-        return make_pair(current_node_index, next_recursion_result.second);
+        return make_pair(current_node_index, merge_result.second);
       } else {
         // if not, then we still have exactly one child.
         if (recursion_result.first != current_node.next) {
@@ -298,6 +305,33 @@ pair<int, int> Nanocube<Summary>::insert_node
         return make_pair(current_node_index, recursion_result.second);
       }
     }
+  }
+}
+
+template <typename Summary>
+pair<int, int> Nanocube<Summary>::merge
+(int left, int right, int dim)
+{
+  if (left == -1)
+    return make_pair(right, get_summary_index(right, dim));
+  if (right == -1)
+    return make_pair(left, get_summary_index(left, dim));
+
+  if (dim == dims.size()) {
+    const Summary &left_summary = summaries.values.at(left),
+                 &right_summary = summaries.values.at(right);
+    Summary new_summary = left_summary + right_summary;
+    int new_summary_index = summaries.insert(new_summary);
+    return make_pair(new_summary_index, new_summary_index);
+  } else {
+    const NCDimNode &left_node = dims.at(dim).at(left),
+                   &right_node = dims.at(dim).at(right);
+    pair<int, int> left_merge = merge(left_node.left, right_node.left, dim),
+                  right_merge = merge(left_node.right, right_node.right, dim),
+                   next_merge = merge(left_node.next, right_node.next, dim+1);
+    NCDimNode new_node(left_merge.first, right_merge.first, next_merge.first);
+    int new_node_index = dims.at(dim).nodes.insert(new_node);
+    return make_pair(new_node_index, next_merge.second);
   }
 }
 

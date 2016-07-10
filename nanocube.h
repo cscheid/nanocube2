@@ -34,6 +34,8 @@ struct Nanocube {
   pair<int, int> insert_node
   (const Summary &summary, const vector<int> &addresses, int current_node, int current_dim, int current_bit, std::map<int, int> &summary_cache);
 
+  pair<int, int> merge(int left, int right, int dim);
+
   void insert(const Summary &summary, const vector<int> &addresses);
 
   /****************************************************************************/
