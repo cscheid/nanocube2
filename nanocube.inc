@@ -23,10 +23,10 @@ inline int Nanocube<Summary>::get_summary_index(int node_index, int dim)
     return -1;
   }
   // otherwise, walk the "next" chain of pointers until we get to the summary table
-  do {
+  while (dim < dims.size()) {
     node_index = dims.at(dim).at(node_index).next;
     ++dim;
-  } while (dim < dims.size());
+  }
   return node_index;
 };
 
@@ -143,9 +143,9 @@ pair<int, int> Nanocube<Summary>::insert_node
 
     if (current_node_index == -1) {
       // we're inserting into a new address.
-      debug_out << "Inserting into a new address" << endl;
       NCDimNode new_node_at_current_dim { -1, -1, recursion_result.first };
       int new_index = nc_dim.nodes.insert(new_node_at_current_dim);
+      debug_out << "Inserting into a new address (" << new_index << ": -1 -1 " << recursion_result.first << ")" << endl;
       return make_pair(new_index, recursion_result.second);
     } else {
       // we're inserting into an existing address.
@@ -167,6 +167,7 @@ pair<int, int> Nanocube<Summary>::insert_node
     
     int refinement_node;
     int where_to_insert = get_bit(current_address, width-bit-1);
+    debug_out << "bit " << bit << " of " << current_address << " is " << where_to_insert << endl;
     if (where_to_insert) {
       debug_out << "Recursing right" << endl;
       refinement_node = current_node.right;
@@ -183,7 +184,7 @@ pair<int, int> Nanocube<Summary>::insert_node
 
     // now we do a case analysis on the number of children we had before the insertion.
     if (current_node.left == -1 && current_node.right == -1) {
-      debug_out << "we had no children" << endl;
+      debug_out << "we had no children,";
       
       // we had no children, but we were an interior node.
       // this means we're actually a ghost node (because all addresses have the same depth,
@@ -207,7 +208,7 @@ pair<int, int> Nanocube<Summary>::insert_node
          ( where_to_insert) ? recursion_result.first : -1,
          recursion_result_node.next);
       int new_index = nc_dim.nodes.insert(node_we_will_insert);
-      
+      debug_out << " inserting (" << new_index << ": " << node_we_will_insert.left << " " << node_we_will_insert.right << " " << node_we_will_insert.next << ")" << endl;
       return make_pair(new_index, recursion_result.second);
     } else if (current_node.left != -1 && current_node.right != -1) {
       debug_out << "we had two children" << endl;
@@ -278,32 +279,30 @@ pair<int, int> Nanocube<Summary>::insert_node
         }
       }
 
-      // if, *after the insertion*, we have two children,
-      // then we need a merge of the next nodes.
-      if (nc_dim.at(current_node_index).left != -1 && nc_dim.at(current_node_index).right != -1) {
-        // "merging"
+      debug_out << "Before merge var init" << endl;
+      
+      // after the insertion, 
+      // we need a merge of the nodes.
+      // if (nc_dim.at(current_node_index).left != -1 && nc_dim.at(current_node_index).right != -1) {
+      // "merging"
 
-        int left_next = nc_dim.at(nc_dim.at(current_node_index).left).next,
-           right_next = nc_dim.at(nc_dim.at(current_node_index).right).next;
-        debug_out << "Merging left:" << left_next << " right:" << right_next << " dim:" << dim+1;
+      const NCDimNode &current = nc_dim.at(current_node_index);
+       NCDimNode new_children = get_children(current_node_index, dim);
+      
+      int left_next = get_children(current.left, dim).next,
+         right_next = get_children(current.right, dim).next;
+      debug_out << "Merging left:" << left_next << " right:" << right_next << " dim:" << dim+1 << endl;
 
-        pair<int, int> merge_result = merge(left_next, right_next, dim+1);
+      pair<int, int> merge_result = merge(left_next, right_next, dim+1);
 
-        debug_out << "Out of merge" << endl;
+      debug_out << "Out of merge" << endl;
         
-        if (merge_result.first != current_node.next) {
-          release_node_ref(current_node.next, dim+1);
-          nc_dim.at(current_node_index).next = merge_result.first;
-        }
-        return make_pair(current_node_index, merge_result.second);
-      } else {
-        // if not, then we still have exactly one child.
-        if (recursion_result.first != current_node.next) {
-          release_node_ref(current_node.next, dim+1);
-          nc_dim.at(current_node_index).next = recursion_result.first;
-        }
-        return make_pair(current_node_index, recursion_result.second);
+      if (merge_result.first != current_node.next) {
+        debug_out << "mutating our next to " << merge_result.first << endl;
+        release_node_ref(current_node.next, dim+1);
+        nc_dim.at(current_node_index).next = merge_result.first;
       }
+      return make_pair(current_node_index, merge_result.second);
     }
   }
 }

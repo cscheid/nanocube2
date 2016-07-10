@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <map>
+#include <cassert>
 
 template <typename T>
 struct RefCountedVec {
@@ -28,5 +29,7 @@ struct RefCountedVec {
   std::vector<int> ref_counts;
   std::vector<int> free_list;
 };
+
+bool sorted_array_has_no_duplicates(const std::vector<int> &v);
 
 #include "ref_counted_vec.inc"
