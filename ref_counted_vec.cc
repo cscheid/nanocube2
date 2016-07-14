@@ -1,5 +1,7 @@
 #include "ref_counted_vec.h"
 
+// Copyright 2016 Arizona Board of Regents. See README.md and LICENSE for more.
+
 // assumes a sorted array.
 bool sorted_array_has_no_duplicates(const std::vector<int> &v)
 {

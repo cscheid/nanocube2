@@ -14,3 +14,6 @@ void minimal_cover(const NCDim &dim, int starting_node,
                    std::vector<pair<int, int> > &nodes,
                    bool insert_partial_overlap = false);
 
+// select single node from any given dimension. returns node index. O(dim.depth)
+int select(const NCDim &dim, int starting_node, int value);
+

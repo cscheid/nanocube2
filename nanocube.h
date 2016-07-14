@@ -32,9 +32,9 @@ struct NCDim {
 template <typename Summary>
 struct Nanocube {
   pair<int, int> insert_node
-  (const Summary &summary, const vector<int> &addresses, int current_node, int current_dim, int current_bit, std::map<int, int> &summary_cache);
+  (const Summary &summary, const vector<int> &addresses, int current_node, int current_dim, int current_bit, std::map<pair<int, int>, int> &summary_cache);
 
-  pair<int, int> merge(int left, int right, int dim);
+  pair<int, int> merge(int left, int right, int dim, std::map<pair<int, int>, int> &summary_cache);
 
   void insert(const Summary &summary, const vector<int> &addresses);
 

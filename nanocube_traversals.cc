@@ -15,10 +15,9 @@ struct BoundedIndex {
 
 };
 
-void minimal_cover(const NCDim &dim, int starting_node,
-                   int lo, int up, int resolution,
-                   vector<pair<int, int> > &nodes,
-                   bool insert_partial_overlap)
+void minimal_cover
+(const NCDim &dim, int starting_node, int lo, int up, int resolution,
+ vector<pair<int, int> > &nodes, bool insert_partial_overlap)
 {
   stack<BoundedIndex> node_indices;
   
@@ -47,3 +46,20 @@ void minimal_cover(const NCDim &dim, int starting_node,
     }
   }
 }
+
+int select(const NCDim &dim, int starting_node, int value)
+{
+  int result = starting_node;
+  for (int i=0; i<dim.width; ++i) {
+    if (result == -1) return -1;
+    const NCDimNode &node = dim.nodes.values.at(result);
+    int which_direction = get_bit(result, dim.width-i-1);
+    if (which_direction) {
+      result = node.right;
+    } else {
+      result = node.left;
+    }
+  }
+  return result;
+}
+
