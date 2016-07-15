@@ -12,6 +12,8 @@ inline int get_bit(int value, int bit)
 
 };
 
+#define COUT (cout << __FILE__ << ":" << __LINE__ << " - ")
+
 /******************************************************************************/
 // Simple accessors
 
@@ -43,7 +45,7 @@ inline NCDimNode Nanocube<Summary>::get_children(int node_index, int dim)
 /******************************************************************************/
 
 template <typename Summary>
-int Nanocube<Summary>::make_node_ref(int node_index, int dim)
+inline int Nanocube<Summary>::make_node_ref(int node_index, int dim)
 {
   if (node_index == -1) {
     return 0;
@@ -51,13 +53,13 @@ int Nanocube<Summary>::make_node_ref(int node_index, int dim)
   if (dim == dims.size()) {
     return summaries.make_ref(node_index);
   } else {
-    assert(node_index < dims.at(dim).size());
-    return dims.at(dim).nodes.make_ref(node_index);
+    assert(node_index < dims[dim].size());
+    return dims[dim].nodes.make_ref(node_index);
   }
 }
 
 template <typename Summary>
-void Nanocube<Summary>::release_node_ref(int node_index, int dim)
+inline void Nanocube<Summary>::release_node_ref(int node_index, int dim)
 {
   vector<pair<int, int> > stack;
   stack.push_back(make_pair(node_index, dim));
@@ -292,6 +294,7 @@ pair<int, int> Nanocube<Summary>::insert_node
 
       // now we must update the next pointer as well, and that requires another
       // recursive insertion, because no sharing exists.
+      // COUT << "Must merge next" << endl;
       pair<int, int> merge_result = merge(dims.at(dim).at(current_node.left).next,
                                           dims.at(dim).at(current_node.right).next,
                                           dim+1, summary_cache);
@@ -332,6 +335,7 @@ pair<int, int> Nanocube<Summary>::insert_node
          right_next = get_children(current.right, dim).next;
       // debug_out << "Merging left:" << left_next << " right:" << right_next << " dim:" << dim+1 << endl;
 
+      // COUT << "must merge next " << endl;
       pair<int, int> merge_result = merge(left_next, right_next, dim+1, summary_cache);
 
       // debug_out << "Out of merge" << endl;
@@ -375,8 +379,22 @@ pair<int, int> Nanocube<Summary>::merge
     NCDimNode left_node = dims.at(dim).at(left),
              right_node = dims.at(dim).at(right);
     pair<int, int> left_merge = merge(left_node.left,  right_node.left,  dim,   summary_cache),
-                  right_merge = merge(left_node.right, right_node.right, dim,   summary_cache),
-                   next_merge = merge(left_node.next,  right_node.next,  dim+1, summary_cache);
+                  right_merge = merge(left_node.right, right_node.right, dim,   summary_cache);
+    pair<int, int> next_merge;
+
+    int left_index = left_merge.first,
+       right_index = right_merge.first;
+    
+    if        (left_index == -1 && right_index == -1) {
+      next_merge = merge(left_node.next, right_node.next, dim+1, summary_cache);
+    } else if (left_index == -1 && right_index != -1) {
+      next_merge = make_pair(dims.at(dim).at(right_index).next, right_merge.second);
+    } else if (left_index != -1 && right_index == -1) {
+      next_merge = make_pair(dims.at(dim).at(left_index).next, left_merge.second);
+    } else if (left_index != -1 && right_index != -1) {
+      next_merge = merge(left_node.next, right_node.next, dim+1, summary_cache);
+    }
+    
     NCDimNode new_node(left_merge.first, right_merge.first, next_merge.first);
     make_node_ref(left_merge.first, dim);
     make_node_ref(right_merge.first, dim);
@@ -530,7 +548,7 @@ Nanocube<Summary>::Nanocube(const Nanocube<Summary> &other):
 {}
 
 template <typename Summary>
-void Nanocube<Summary>::set_left_node_ref(int node_index, int dim, int value)
+inline void Nanocube<Summary>::set_left_node_ref(int node_index, int dim, int value)
 {
   int to_release = dims.at(dim).at(node_index).left;
   dims.at(dim).at(node_index).left = value;
@@ -539,7 +557,7 @@ void Nanocube<Summary>::set_left_node_ref(int node_index, int dim, int value)
 }
 
 template <typename Summary>
-void Nanocube<Summary>::set_right_node_ref(int node_index, int dim, int value)
+inline void Nanocube<Summary>::set_right_node_ref(int node_index, int dim, int value)
 {
   int to_release = dims.at(dim).at(node_index).right;
   dims.at(dim).at(node_index).right = value;
@@ -548,7 +566,7 @@ void Nanocube<Summary>::set_right_node_ref(int node_index, int dim, int value)
 }
 
 template <typename Summary>
-void Nanocube<Summary>::set_next_node_ref(int node_index, int dim, int value)
+inline void Nanocube<Summary>::set_next_node_ref(int node_index, int dim, int value)
 {
   int to_release = dims.at(dim).at(node_index).next;
   dims.at(dim).at(node_index).next = value;

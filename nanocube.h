@@ -55,12 +55,12 @@ struct Nanocube {
 
   /****************************************************************************/
   // utility
-  void release_node_ref(int node_index, int dim);
-  int make_node_ref(int node_index, int dim);
+  inline void release_node_ref(int node_index, int dim);
+  inline int make_node_ref(int node_index, int dim);
 
-  void set_left_node_ref(int node_index, int dim, int value);
-  void set_right_node_ref(int node_index, int dim, int value);
-  void set_next_node_ref(int node_index, int dim, int value);
+  inline void set_left_node_ref(int node_index, int dim, int value);
+  inline void set_right_node_ref(int node_index, int dim, int value);
+  inline void set_next_node_ref(int node_index, int dim, int value);
   
   void compact();
 
