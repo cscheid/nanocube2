@@ -64,7 +64,7 @@ std::map<int, int> RefCountedVec<T>::compact()
     }
     assert(*holes_b <= values_i);
     
-    --holes_b;
+    ++holes_b;
     --values_i;
     values.pop_back();
     ref_counts.pop_back();
