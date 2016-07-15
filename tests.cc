@@ -129,12 +129,14 @@ void property_tests()
     for (int j=0; j<1000; ++j) {
       vector<int> point(random_point(schema));
       nc.insert(1, point);
-      cout << ".";
-      cout.flush();
+      // cout << ".";
+      // cout.flush();
       // if (!nc.validate_refcounts()) {
       //   exit(1);
       // }
     }
+    nc.compact();
+    cout << "Summaries:" << nc.summaries.values.size() << endl;
     cout << endl;
   }
 }
