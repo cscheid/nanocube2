@@ -16,14 +16,14 @@ template <typename T>
 struct RefCountedVec {
 
   // add a reference to an existing value. returns new reference count
-  int make_ref(int index);
+  inline int make_ref(int index);
 
   // remove a reference from an existing value. returns new reference count
-  int release_ref(int index);
+  inline int release_ref(int index);
 
   // insert fresh value and return index of reference to it. Returns reference
   // (*not* count, but rather the index)
-  int insert(const T &value);
+  inline int insert(const T &value);
 
   // compacts the vector, ensuring that free_list.size() == 0 after the call.
 

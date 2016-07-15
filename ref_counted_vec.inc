@@ -4,14 +4,14 @@
 using namespace std;
 
 template <typename T>
-int RefCountedVec<T>::make_ref(int index) {
+inline int RefCountedVec<T>::make_ref(int index) {
   assert(index < values.size());
   assert(ref_counts.size() == values.size());
   return ++ref_counts[index];
 }
 
 template <typename T>
-int RefCountedVec<T>::release_ref(int index) {
+inline int RefCountedVec<T>::release_ref(int index) {
   assert(index < values.size());
   assert(ref_counts.size() == values.size());
   assert(ref_counts[index] > 0);
@@ -24,7 +24,7 @@ int RefCountedVec<T>::release_ref(int index) {
 }
 
 template <typename T>
-int RefCountedVec<T>::insert(const T &value) {
+inline int RefCountedVec<T>::insert(const T &value) {
   int new_ref;
   if (free_list.size() > 0) {
     int free_index = free_list.back();
