@@ -1,10 +1,12 @@
 // Copyright 2016 Arizona Board of Regents. See README.md and LICENSE for more info
 
+#include <iostream>
+using namespace std;
+
 template <typename T>
 int RefCountedVec<T>::make_ref(int index) {
   assert(index < values.size());
   assert(ref_counts.size() == values.size());
-  
   return ++ref_counts[index];
 }
 
@@ -35,7 +37,6 @@ int RefCountedVec<T>::insert(const T &value) {
     ref_counts.push_back(0);
     new_ref = values.size() - 1;
   }
-  make_ref(new_ref);
   return new_ref;
 }
 

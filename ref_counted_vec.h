@@ -6,6 +6,12 @@
 #include <map>
 #include <cassert>
 
+// vector of reference-counted values. The reference-counts are "manually"-managed:
+// there's currently no RAII support for references, and copies of a reference-counted
+// vector copy the reference counts. This is possibly not the correct behavior in all
+// instances, but is exactly what we want in the case of copies the refcountedvecs in
+// a nanocube.
+
 template <typename T>
 struct RefCountedVec {
 
@@ -28,6 +34,12 @@ struct RefCountedVec {
   std::vector<T> values;
   std::vector<int> ref_counts;
   std::vector<int> free_list;
+
+  RefCountedVec() {}
+  RefCountedVec(const RefCountedVec<T> &other):
+      values(other.values),
+      ref_counts(other.ref_counts),
+      free_list(other.free_list) {}
 };
 
 bool sorted_array_has_no_duplicates(const std::vector<int> &v);
