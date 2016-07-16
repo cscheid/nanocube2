@@ -38,7 +38,6 @@ struct PairHasher {
 };
 template <typename Summary>
 struct Nanocube {
-  int cache_hit, cache_miss;
   typedef std::unordered_map<pair<int, int>, int, PairHasher> SummaryCache;
 
   pair<int, int> insert_fresh_node
@@ -71,7 +70,14 @@ struct Nanocube {
   
   void compact();
 
+  // use summary values to extract a minimal-size nanocube.
+  // NB: after calling content_compact(), insert_node will yield
+  // undefined behavior.
+  void content_compact();
+
   void dump_internals(bool force_print=false);
+
+  void report_size() const;
 
   bool validate_refcounts();
   

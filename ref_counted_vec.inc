@@ -44,32 +44,43 @@ template <typename T>
 std::map<int, int> RefCountedVec<T>::compact()
 {
   std::map<int, int> result;
+  sort(free_list.begin(), free_list.end());
   bool b = sorted_array_has_no_duplicates(free_list);
   assert(b);
   int values_i = values.size() - 1;
-  auto holes_b = free_list.rbegin(), holes_e = free_list.rend();
+  auto holes_b = free_list.begin(), holes_e = free_list.end(), holes_l = free_list.end() - 1;
 
   // while we still have unpatched holes and we still haven't
   // hit the beginning of the array:
   while (holes_b != holes_e && values_i >= 0) {
-    assert(ref_counts[*holes_b] == 0);
-
-    if (*holes_b < values_i) {
-      // patch furthest unpatched hole with back of values array.
-      values[*holes_b] = values[values_i];
-      ref_counts[*holes_b] = ref_counts[values_i];
-
-      // update transposition map of compaction
-      result[values_i] = *holes_b;
+    if (ref_counts[values_i] == 0) {
+      assert(values_i == *holes_l);
+      --holes_l;
+      --holes_e;
+      --values_i;
+      values.pop_back();
+      ref_counts.pop_back();
+      continue;
     }
-    assert(*holes_b <= values_i);
+    assert(ref_counts[*holes_b] == 0);
+    assert(ref_counts[values_i] != 0);
+    assert(*holes_b < values_i);
+
+    // patch furthest unpatched hole with back of values array.
+    swap(values[*holes_b], values[values_i]);
+    swap(ref_counts[*holes_b], ref_counts[values_i]);
+
+    // update transposition map of compaction
+    result[values_i] = *holes_b;
     
     ++holes_b;
     --values_i;
     values.pop_back();
     ref_counts.pop_back();
-    free_list.pop_back();
   }
+
+  free_list.clear();
+  assert(free_list.size() == 0);
   return result;
 }
 

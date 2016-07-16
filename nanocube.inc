@@ -382,10 +382,8 @@ pair<int, int> Nanocube<Summary>::merge
       Summary new_summary = left_summary + right_summary;
       new_summary_index = summaries.insert(new_summary);
       summary_cache[make_pair(left, right)] = new_summary_index;
-      cache_miss++;
     } else {
       new_summary_index = f->second;
-      cache_hit++;
     }
     return make_pair(new_summary_index, new_summary_index);
   } else {
@@ -423,21 +421,10 @@ void Nanocube<Summary>::insert
 (const Summary &summary, const vector<int> &addresses)
 {
   SummaryCache summary_cache;
-  // cout << summary_cache.size() << ";";
-  // cout << summaries.values.size() << "-";
-  cache_hit = cache_miss = 0;
-
   pair<int, int> fresh_node = insert_fresh_node(summary, addresses, 0, 0);
 
   make_node_ref(fresh_node.first, 0);
   pair<int, int> result = merge(base_root, fresh_node.first, 0, summary_cache);
-  // pair<int, int> result = insert_node(summary, addresses, base_root, 0, 0, summary_cache);
-  // cout << "hits:" << cache_hit
-  //      << " misses:" << cache_miss
-  //      << " summary_cache:" << summary_cache.size()
-  //      << " summaries:" << summaries.values.size() << endl;
-  // cout << summaries.values.size() << " (";
-  // cout << summary_cache.size() << ")" << endl;
   make_node_ref(result.first, 0);
   release_node_ref(base_root, 0);
   release_node_ref(fresh_node.first, 0);
@@ -448,6 +435,7 @@ template <typename Summary>
 void Nanocube<Summary>::compact() {
   auto previous_map = summaries.compact();
   for (auto rb = dims.rbegin(), re = dims.rend(); re != rb; ++rb) {
+    assert(rb->nodes.values.size() == rb->nodes.ref_counts.size());
     size_t sz = rb->nodes.values.size();
     auto e = previous_map.end();
     for (int i=0; i<sz; ++i) {
@@ -463,10 +451,80 @@ void Nanocube<Summary>::compact() {
       if (f != e) {
         rb->nodes.values[i].left = f->second;
       }
-      previous_map.find(rb->nodes.values[i].right);
+      f = previous_map.find(rb->nodes.values[i].right);
       if (f != e) {
         rb->nodes.values[i].right = f->second;
       }
+    }
+  }
+  auto f = previous_map.find(base_root);
+  if (f != previous_map.end()) {
+    base_root = f->second;
+  }
+}
+
+template <typename Summary>
+struct SummaryComparator
+{
+  std::vector<Summary> &vec_;
+  explicit SummaryComparator(std::vector<Summary> &vec): vec_(vec) {};
+  
+  bool operator()(int v1, int v2) {
+    return vec_[v1] < vec_[v2];
+  }
+};
+
+// find_uniques assumes a sorted vector
+template <typename Summary>
+void find_uniques(std::vector<int> &indices, std::vector<Summary> &summaries)
+{
+  if (indices.size() < 3) {
+    return;
+  }
+  int v1 = indices[0], v2, i = 1;
+  while (i < indices.size()) {
+    v2 = indices[i];
+    if (summaries[v1] == summaries[v2]) {
+      indices[i] = v1;
+    } else {
+      v1 = indices[i];
+    }
+    ++i;
+  }
+}
+
+template <typename Summary>
+void Nanocube<Summary>::content_compact()
+{
+  assert(summaries.free_list.size() == 0);
+  std::vector<int> summary_indices;
+  for (int i=0; i<summaries.values.size(); ++i) {
+    summary_indices.push_back(i);
+  }
+
+  sort(summary_indices.begin(), summary_indices.end(), SummaryComparator<Summary>(summaries.values));
+  copy(summary_indices.begin(), summary_indices.end(), ostream_iterator<int>(cout, " "));
+  cout << endl;
+  for (int i=0; i<summary_indices.size(); ++i) {
+    cout << summaries.values[summary_indices[i]] << " ";
+  }
+  
+  vector<Summary> old_summaries = summaries.values;
+  vector<int> old_refcounts = summaries.ref_counts;
+  
+  for (int i=0; i<summaries.values.size(); ++i) {
+    summaries.values.at(i) = old_summaries.at(summary_indices.at(i));
+    summaries.ref_counts.at(i) = old_refcounts.at(summary_indices.at(i));
+  }
+
+  // for now, only compact the dim that points to the summaries
+  for (int i=0; i<dims.back().nodes.values.size(); ++i) {
+    NCDimNode &node = dims.back().nodes.values.at(i);
+    if (node.next != summary_indices.at(node.next)) {
+      cout << "before:" << node.next;
+      node.next = summary_indices.at(node.next);
+      cout << " after:" << node.next;
+      cout << endl;
     }
   }
 }
@@ -479,6 +537,19 @@ Nanocube<Summary>::Nanocube(const vector<int> &widths, bool debug): unopened(), 
     dims.push_back(ncd);
   }
   base_root = -1;
+}
+
+/******************************************************************************/
+
+template <typename Summary>
+void Nanocube<Summary>::report_size() const
+{
+  cout << "Summary counts: " << summaries.values.size() << endl;
+  cout << "Dimension counts:";
+  for (size_t i=0; i<dims.size(); ++i) {
+    cout << " " << dims.at(i).size();
+  }
+  cout << endl;
 }
 
 template <typename Summary>
@@ -522,12 +593,12 @@ template <typename Summary>
 bool Nanocube<Summary>::validate_refcounts()
 {
   bool kill = false;
-  vector<vector<int> > ref_counts(dims.size()+1);
-  for (int i=0; i<ref_counts.size()-1; ++i) {
+  vector<vector<int> > ref_counts;
+  for (int i=0; i<dims.size(); ++i) {
     NCDim &dim = dims.at(i);
-    ref_counts[i] = vector<int>(dim.size(), 0);
+    ref_counts.push_back(vector<int>(dim.size(), 0));
   }
-  ref_counts.back() = vector<int>(summaries.values.size(), 0);
+  ref_counts.push_back(vector<int>(summaries.values.size(), 0));
   ref_counts[0][base_root]++;
   for (int i=0; i<ref_counts.size()-1; ++i) {
     NCDim &dim = dims.at(i);
