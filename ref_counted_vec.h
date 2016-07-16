@@ -35,6 +35,9 @@ struct RefCountedVec {
   std::vector<int> ref_counts;
   std::vector<int> free_list;
 
+  T &at(size_t v) { return values.at(v); }
+  const T &at(size_t v) const { return values.at(v); }
+
   RefCountedVec() {}
   RefCountedVec(const RefCountedVec<T> &other):
       values(other.values),

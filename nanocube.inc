@@ -13,6 +13,8 @@ inline int get_bit(int value, int bit)
 };
 
 #define COUT (cout << __FILE__ << ":" << __LINE__ << " - ")
+#define TRACE (cout << __FILE__ << ":" << __LINE__)
+#define var(x) #x << ":" << x << " "
 
 /******************************************************************************/
 // Simple accessors
@@ -72,7 +74,7 @@ inline void Nanocube<Summary>::release_node_ref(int node_index, int dim)
     pair<int, int> top = stack.back();
     int dim = top.second, node_index = top.first;
     stack.pop_back();
-    if (top.second == dims.size()) {
+    if (dim == dims.size()) {
       summaries.release_ref(node_index);
     } else {
       NCDimNode &node = dims.at(dim).at(node_index);
@@ -116,6 +118,41 @@ inline void Nanocube<Summary>::release_node_ref(int node_index, int dim)
   // }
 }
 
+template <typename Summary>
+pair<int, int> Nanocube<Summary>::insert_fresh_node
+(const Summary &summary, const vector<int> &addresses, int dim, int bit)
+{
+  assert(dims.size() == addresses.size());
+  
+  if (dim == dims.size()) {
+    int new_ref = summaries.insert(summary);
+    return make_pair(new_ref, new_ref);
+  } else {
+    NCDim &nc_dim = dims.at(dim);
+    int width = nc_dim.width;
+    if (bit == width) {
+      pair<int, int> next_dim_result = insert_fresh_node(summary, addresses, dim+1, 0);
+      NCDimNode new_node_at_current_dim { -1, -1, next_dim_result.first };
+      make_node_ref(next_dim_result.first, dim+1);
+      int new_index = nc_dim.nodes.insert(new_node_at_current_dim);
+      return make_pair(new_index, next_dim_result.second);
+    } else {
+      int refinement_node;
+      int where_to_insert = get_bit(addresses[dim], width-bit-1);
+      pair<int, int> recursion_result = insert_fresh_node(summary, addresses, dim, bit+1);
+      int next = nc_dim.at(recursion_result.first).next;
+      NCDimNode new_refinement_node(
+          (!where_to_insert) ? recursion_result.first : -1,
+          ( where_to_insert) ? recursion_result.first : -1,
+          next);
+      make_node_ref(next, dim+1);
+      make_node_ref(recursion_result.first, dim);
+      int new_index = nc_dim.nodes.insert(new_refinement_node);
+      return make_pair(new_index, recursion_result.second);
+    }
+  }
+}
+
 // insert_node returns a pair of indices: the first element is the
 // index of the newly inserted node at $dim$.  the second element is
 // the index where $summary$ was appended to.  note that this is not
@@ -150,40 +187,6 @@ pair<int, int> Nanocube<Summary>::insert_node
         new_ref = summaries.insert(new_summary);
     }
     return make_pair(new_ref, new_ref);
-    // auto f = summary_cache.find(k);
-    // if (current_node_index == -1) {
-    //   if (f == summary_cache.end()) {
-    //     // forced summary insertion
-    //     debug_out << "forced atomic summary insertion" << endl;
-    //     int new_ref = summaries.insert(summary);
-    //     debug_out << "New summary at " << new_ref << endl;
-    //     summary_cache[k] = new_ref;
-    //     cache_miss++;
-    //     return make_pair(new_ref, new_ref);
-    //   } else {
-    //     int summary_ref = f->second;
-    //     cout << "HIT" << endl;
-    //     debug_out << "summary cache hit for fresh insertion at " << summary_ref << endl;
-    //     cache_hit++;
-    //     return make_pair(summary_ref, summary_ref);
-    //   }
-    // } else {
-    //   debug_out << "Existing summary at " << current_node_index << endl;
-    //   if (f == summary_cache.end()) {
-    //     debug_out << "forced composite summary insertion" << endl;
-    //     const Summary &other_summary = summaries.values.at(current_node_index);
-    //     Summary new_summary = other_summary + summary;
-    //     int new_ref = summaries.insert(new_summary);
-    //     summary_cache[k] = new_ref;
-    //     debug_out << "New summary (from " << current_node_index << ") at " << new_ref << endl;
-    //     return make_pair(new_ref, new_ref);
-    //   } else {
-    //     int summary_ref = f->second;
-    //     cout << "HIT" << endl;
-    //     debug_out << "summary cache hit for fresh insertion at " << summary_ref << endl;
-    //     return make_pair(summary_ref, summary_ref);
-    //   }
-    // }
   }
   assert(dim < dims.size());
   
@@ -292,14 +295,24 @@ pair<int, int> Nanocube<Summary>::insert_node
         set_left_node_ref(current_node_index, dim, recursion_result.first);
       }
 
+      pair<int, int> fresh_new_node = insert_node(summary, addresses, -1, dim+1, 0, summary_cache);
+      make_node_ref(fresh_new_node.first, dim+1);
+      pair<int, int> merge_result = merge(current_node.next,
+                                          fresh_new_node.first,
+                                          dim+1, summary_cache);
+      set_next_node_ref(current_node_index, dim, merge_result.first);
+      release_node_ref(fresh_new_node.first, dim+1);
+      return make_pair(current_node_index, merge_result.second);
+      
+          
       // now we must update the next pointer as well, and that requires another
       // recursive insertion, because no sharing exists.
       // COUT << "Must merge next" << endl;
-      pair<int, int> merge_result = merge(dims.at(dim).at(current_node.left).next,
-                                          dims.at(dim).at(current_node.right).next,
-                                          dim+1, summary_cache);
-      set_next_node_ref(current_node_index, dim, merge_result.first);
-      return make_pair(current_node_index, merge_result.second);
+      // pair<int, int> merge_result = merge(dims.at(dim).at(current_node.left).next,
+      //                                     dims.at(dim).at(current_node.right).next,
+      //                                     dim+1, summary_cache);
+      // set_next_node_ref(current_node_index, dim, merge_result.first);
+      // return make_pair(current_node_index, merge_result.second);
       
     } else {
       assert((current_node.left == -1 && current_node.right != -1) ||
@@ -413,7 +426,12 @@ void Nanocube<Summary>::insert
   // cout << summary_cache.size() << ";";
   // cout << summaries.values.size() << "-";
   cache_hit = cache_miss = 0;
-  pair<int, int> result = insert_node(summary, addresses, base_root, 0, 0, summary_cache);
+
+  pair<int, int> fresh_node = insert_fresh_node(summary, addresses, 0, 0);
+
+  make_node_ref(fresh_node.first, 0);
+  pair<int, int> result = merge(base_root, fresh_node.first, 0, summary_cache);
+  // pair<int, int> result = insert_node(summary, addresses, base_root, 0, 0, summary_cache);
   // cout << "hits:" << cache_hit
   //      << " misses:" << cache_miss
   //      << " summary_cache:" << summary_cache.size()
@@ -422,6 +440,7 @@ void Nanocube<Summary>::insert
   // cout << summary_cache.size() << ")" << endl;
   make_node_ref(result.first, 0);
   release_node_ref(base_root, 0);
+  release_node_ref(fresh_node.first, 0);
   base_root = result.first;
 }
 
@@ -478,6 +497,10 @@ void Nanocube<Summary>::dump_internals(bool force_print)
            << "\t" << vec.values.at(j).right
            << "\t" << vec.values.at(j).next << endl;
     }
+    out << "Free list:" << endl;
+    for (int j=0; j<vec.free_list.size(); ++j) {
+      out << "\t" << vec.free_list[j] << endl;
+    }
     out << endl;
   }
   out << "Summaries" << endl;
@@ -486,6 +509,10 @@ void Nanocube<Summary>::dump_internals(bool force_print)
     out << "\t" << i
         << "\t" << summaries.ref_counts.at(i)
          << "\t" << summaries.values.at(i) << endl;
+  }
+  out << "Free list:" << endl;
+  for (int j=0; j<summaries.free_list.size(); ++j) {
+    out << "\t" << summaries.free_list[j] << endl;
   }
 }
 

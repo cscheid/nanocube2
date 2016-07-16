@@ -40,6 +40,9 @@ template <typename Summary>
 struct Nanocube {
   int cache_hit, cache_miss;
   typedef std::unordered_map<pair<int, int>, int, PairHasher> SummaryCache;
+
+  pair<int, int> insert_fresh_node
+  (const Summary &summary, const vector<int> &addresses, int dim, int bit);
   
   pair<int, int> insert_node
   (const Summary &summary, const vector<int> &addresses, int current_node, int current_dim, int current_bit, SummaryCache &summary_cache);
@@ -53,6 +56,10 @@ struct Nanocube {
   inline int get_summary_index(int node_index, int dim);
   inline NCDimNode get_children(int node_index, int dim);
 
+  /****************************************************************************/
+  // queries
+  Summary ortho_range_query(const vector<pair<int, int> > &region);
+  
   /****************************************************************************/
   // utility
   inline void release_node_ref(int node_index, int dim);

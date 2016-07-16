@@ -36,7 +36,7 @@ void minimal_cover
       }
     } else {
       // avoid underflow for large values. Remember Java's lesson..
-      int mid = lo + ((up - lo) / 2);
+      int mid = t.left + ((t.right - t.left) / 2);
       if (node.left != -1) {
         node_indices.push(BoundedIndex(t.left, mid, node.left, t.depth+1));
       }

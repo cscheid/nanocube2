@@ -17,3 +17,11 @@ void minimal_cover(const NCDim &dim, int starting_node,
 // select single node from any given dimension. returns node index. O(dim.depth)
 int select(const NCDim &dim, int starting_node, int value);
 
+template <typename Summary>
+Summary ortho_range_query(const Nanocube<Summary> &nc,
+                          const vector<pair<int, int> > &range,
+                          bool insert_partial_overlap = false,
+                          int dim = 0,
+                          int index = -1);
+
+#include "nanocube_traversals.inc"
