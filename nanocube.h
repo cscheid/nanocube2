@@ -73,6 +73,8 @@ struct Nanocube {
   // use summary values to extract a minimal-size nanocube.
   // NB: after calling content_compact(), insert_node will yield
   // undefined behavior.
+
+  // NB, this is fairly inefficient at the moment.
   void content_compact();
 
   void dump_internals(bool force_print=false);

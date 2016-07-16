@@ -476,26 +476,30 @@ struct SummaryComparator
 
 // find_uniques assumes a sorted vector
 template <typename Summary>
-void find_uniques(std::vector<int> &indices, std::vector<Summary> &summaries)
+std::vector<int> find_uniques(std::vector<Summary> &summaries)
 {
-  if (indices.size() < 3) {
-    return;
+  if (summaries.size() < 1) {
+    return vector<int>();
   }
-  int v1 = indices[0], v2, i = 1;
-  while (i < indices.size()) {
-    v2 = indices[i];
-    if (summaries[v1] == summaries[v2]) {
-      indices[i] = v1;
+  vector<int> result { 0 };
+  int previous = 0, current = 1;
+  while (current < summaries.size()) {
+    if (summaries[previous] == summaries[current]) {
+      result.push_back(previous);
     } else {
-      v1 = indices[i];
+      result.push_back(current);
+      previous = current;
     }
-    ++i;
+    ++current;
   }
+  return result;
 }
+
 
 template <typename Summary>
 void Nanocube<Summary>::content_compact()
 {
+  compact();
   assert(summaries.free_list.size() == 0);
   std::vector<int> summary_indices;
   for (int i=0; i<summaries.values.size(); ++i) {
@@ -503,30 +507,32 @@ void Nanocube<Summary>::content_compact()
   }
 
   sort(summary_indices.begin(), summary_indices.end(), SummaryComparator<Summary>(summaries.values));
-  copy(summary_indices.begin(), summary_indices.end(), ostream_iterator<int>(cout, " "));
-  cout << endl;
-  for (int i=0; i<summary_indices.size(); ++i) {
-    cout << summaries.values[summary_indices[i]] << " ";
-  }
   
   vector<Summary> old_summaries = summaries.values;
   vector<int> old_refcounts = summaries.ref_counts;
-  
   for (int i=0; i<summaries.values.size(); ++i) {
     summaries.values.at(i) = old_summaries.at(summary_indices.at(i));
     summaries.ref_counts.at(i) = old_refcounts.at(summary_indices.at(i));
   }
 
+  vector<int> summary_indices_inv(summary_indices.size());
+  for (int i=0; i<summary_indices.size(); ++i) {
+    summary_indices_inv[summary_indices[i]] = i;
+  }
+
   // for now, only compact the dim that points to the summaries
   for (int i=0; i<dims.back().nodes.values.size(); ++i) {
     NCDimNode &node = dims.back().nodes.values.at(i);
-    if (node.next != summary_indices.at(node.next)) {
-      cout << "before:" << node.next;
-      node.next = summary_indices.at(node.next);
-      cout << " after:" << node.next;
-      cout << endl;
+    if (node.next != summary_indices_inv.at(node.next)) {
+      node.next = summary_indices_inv.at(node.next);
     }
   }
+  vector<int> uniques = find_uniques(summaries.values);
+  for (int i=0; i<dims.back().nodes.values.size(); ++i) {
+    NCDimNode &node = dims.back().nodes.values.at(i);
+    set_next_node_ref(i, dims.size()-1, uniques[node.next]);
+  }
+  compact();
 }
 
 template <typename Summary>

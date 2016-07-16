@@ -195,17 +195,14 @@ void property_tests()
       points.push_back(point);
       nc.insert(1, point);
     }
-    nc.compact();
-    nc.validate_refcounts();
+    nc.content_compact();
     nc.report_size();
-    // nc.content_compact();
-    // nc.compact();
-    // nc.report_size();
 
     // property 0: the root node of a nanocube should have count equal to
     // the number of points inserted
     if (nc.summaries.at(nc.get_summary_index(nc.base_root, 0)) != n_points) {
       cerr << "FAILED PROPERTY 0" << endl;
+      cerr << nc.summaries.at(nc.get_summary_index(nc.base_root, 0)) << " vs " << n_points << endl;
       exit(1);
     }
     
