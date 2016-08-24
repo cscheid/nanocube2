@@ -495,7 +495,6 @@ std::vector<int> find_uniques(std::vector<Summary> &summaries)
   return result;
 }
 
-
 template <typename Summary>
 void Nanocube<Summary>::content_compact()
 {
@@ -676,6 +675,38 @@ inline void Nanocube<Summary>::set_next_node_ref(int node_index, int dim, int va
   dims.at(dim).at(node_index).next = value;
   make_node_ref(value, dim+1);
   release_node_ref(to_release, dim+1);
+}
+
+/******************************************************************************/
+
+// NB: this assumes that T doesn't has pointers inside it (or if it does,
+// you'll have to figure them out by yourself.)
+template <typename T>
+void write_vector_to_binary_stream(std::ostream &os, const std::vector<T> &v)
+{
+  int sz = v.size();
+  os.write((char*) &sz, sizeof(int));
+  os.write((char*) &(v[0]), v.size() * sizeof(T));
+}
+
+template <typename Summary>
+void Nanocube<Summary>::write_to_binary_stream(std::ostream &os)
+{
+  os.write((char*) &base_root, sizeof(int));
+  int d = dims.size();
+  os.write((char*) &d, sizeof(int));
+
+  for (size_t i=0; i<dims.size(); ++i) {
+    int w = dims[i].width;
+    os.write((char *) &w, sizeof(int));
+    write_vector_to_binary_stream(os, dims[i].nodes.values);
+    write_vector_to_binary_stream(os, dims[i].nodes.ref_counts);
+    write_vector_to_binary_stream(os, dims[i].nodes.free_list);
+  }
+
+  write_vector_to_binary_stream(os, summaries.values);
+  write_vector_to_binary_stream(os, summaries.ref_counts);
+  write_vector_to_binary_stream(os, summaries.free_list);
 }
 
 /******************************************************************************/

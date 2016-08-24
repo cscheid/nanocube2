@@ -83,6 +83,43 @@ void smoke_tests()
 }
 
 /******************************************************************************/
+// simple 1
+
+void print_simple_nc(const vector<int> &schema,
+                     const vector<vector<int> > &points,
+                     std::string filename)
+{
+  Nanocube<int> nc(schema);
+  for (size_t i=0; i<points.size(); ++i) {
+    nc.insert(1, points[i]);
+  }
+  nc.compact();
+  ofstream os(filename.c_str());
+  print_dot(os, nc);
+}
+
+void simple_1()
+{
+  print_simple_nc({3, 3, 3}, { {0,0,0}, {3,3,3} }, "simple_1.dot");
+  vector<vector<int> > pts;
+  for (size_t i=0; i<4; ++i) {
+    vector<int> pt;
+    for (size_t j=0; j<3; ++j) {
+      pt.push_back(rand() % 16);
+    }
+    pts.push_back(pt);
+    copy(pt.begin(), pt.end(), ostream_iterator<int>(cout, " "));
+    cout << endl;
+  }
+  print_simple_nc({4, 4, 4}, pts, "simple_2.dot");
+}
+
+void simple_2()
+{
+  
+}
+
+/******************************************************************************/
 // property tests
 
 // random generation of test data. NOT THREAD-SAFE
@@ -194,80 +231,94 @@ void property_tests()
       vector<int> point(random_point(schema));
       points.push_back(point);
       nc.insert(1, point);
+      if (j == 10) {
+        {
+          stringstream s;
+          s << i << ".dot";
+          ofstream os(s.str());
+          print_dot(os, nc);
+        }
+      }
     }
     nc.content_compact();
     nc.report_size();
-
-    // property 0: the root node of a nanocube should have count equal to
-    // the number of points inserted
-    if (nc.summaries.at(nc.get_summary_index(nc.base_root, 0)) != n_points) {
-      cerr << "FAILED PROPERTY 0" << endl;
-      cerr << nc.summaries.at(nc.get_summary_index(nc.base_root, 0)) << " vs " << n_points << endl;
-      exit(1);
+    {
+      stringstream s;
+      s << i << ".nc";
+      ofstream os(s.str());
+      nc.write_to_binary_stream(os);
     }
+
+    // // property 0: the root node of a nanocube should have count equal to
+    // // the number of points inserted
+    // if (nc.summaries.at(nc.get_summary_index(nc.base_root, 0)) != n_points) {
+    //   cerr << "FAILED PROPERTY 0" << endl;
+    //   cerr << nc.summaries.at(nc.get_summary_index(nc.base_root, 0)) << " vs " << n_points << endl;
+    //   exit(1);
+    // }
     
-    // property 1: every node in the nanocube partitions its refinement.
-    // in other words: summary(node.left) + summary(node.right) = summary(node.next)
-    for (size_t j=0; j<nc.dims.size(); ++j) {
-      const NCDim &nc_dim = nc.dims.at(j);
-      for (size_t k=0; k<nc_dim.size(); ++k) {
-        const NCDimNode &node = nc_dim.at(k);
-        if        (node.left == -1 && node.right != -1) {
-          if (nc.get_summary_index(k, j) != nc.get_summary_index(node.right, j)) {
-            cerr << "FAILED PROPERTY 1-eps for node " << j << "," << k << endl;
-            nc.dump_internals(true);
-            exit(1);
-          }
-        } else if (node.left != -1 && node.right == -1) {
-          if (nc.get_summary_index(k, j) != nc.get_summary_index(node.left, j)) {
-            cerr << "FAILED PROPERTY 1-eps for node " << j << "," << k << endl;
-            nc.dump_internals(true);
-            exit(1);
-          }
-        } else if (node.left != -1 && node.right != -1) {
-          if (nc.summaries.at(nc.get_summary_index(k, j)) !=
-              nc.summaries.at(nc.get_summary_index(node.left, j)) +
-              nc.summaries.at(nc.get_summary_index(node.right, j))) {
-            cerr << "FAILED PROPERTY 1 for node " << j << "," << k << endl;
-            nc.dump_internals(true);
-            exit(1);
-          }
-        }
-      }
-    }
+    // // property 1: every node in the nanocube partitions its refinement.
+    // // in other words: summary(node.left) + summary(node.right) = summary(node.next)
+    // for (size_t j=0; j<nc.dims.size(); ++j) {
+    //   const NCDim &nc_dim = nc.dims.at(j);
+    //   for (size_t k=0; k<nc_dim.size(); ++k) {
+    //     const NCDimNode &node = nc_dim.at(k);
+    //     if        (node.left == -1 && node.right != -1) {
+    //       if (nc.get_summary_index(k, j) != nc.get_summary_index(node.right, j)) {
+    //         cerr << "FAILED PROPERTY 1-eps for node " << j << "," << k << endl;
+    //         nc.dump_internals(true);
+    //         exit(1);
+    //       }
+    //     } else if (node.left != -1 && node.right == -1) {
+    //       if (nc.get_summary_index(k, j) != nc.get_summary_index(node.left, j)) {
+    //         cerr << "FAILED PROPERTY 1-eps for node " << j << "," << k << endl;
+    //         nc.dump_internals(true);
+    //         exit(1);
+    //       }
+    //     } else if (node.left != -1 && node.right != -1) {
+    //       if (nc.summaries.at(nc.get_summary_index(k, j)) !=
+    //           nc.summaries.at(nc.get_summary_index(node.left, j)) +
+    //           nc.summaries.at(nc.get_summary_index(node.right, j))) {
+    //         cerr << "FAILED PROPERTY 1 for node " << j << "," << k << endl;
+    //         nc.dump_internals(true);
+    //         exit(1);
+    //       }
+    //     }
+    //   }
+    // }
 
-    // property 2: for every orthogonal range in the nanocube, the result of
-    // the range query is equal to the linear scan of the point array
-    int n_regions = 100;
-    for (int l=0; l<n_regions; ++l) {
-      vector<pair<int, int> > region = random_region(schema);
-      int count = 0;
-      for (size_t j=0; j<points.size(); ++j) {
-        bool outside = false;
-        for (size_t k=0; k<region.size(); ++k) {
-          if (points[j][k] < region[k].first || points[j][k] >= region[k].second) {
-            outside = true;
-            break;
-          }
-        }
-        if (!outside) {
-          ++count;
-        }
-      }
-      int rq = ortho_range_query(nc, region);
-      if (count != rq) {
-        cerr << "PROPERTY 2 VIOLATED " << var(count) << var(rq) << endl;
-        for (size_t j=0; j<region.size(); ++j) {
-          cerr << region[j].first << "-" << region[j].second << " ";
-        }
-        cerr << endl;
-        {
-          ofstream os("ugh.dot");
-          print_dot(os, nc);
-        }
-        exit(1);
-      }
-    }
+    // // property 2: for every orthogonal range in the nanocube, the result of
+    // // the range query is equal to the linear scan of the point array
+    // int n_regions = 100;
+    // for (int l=0; l<n_regions; ++l) {
+    //   vector<pair<int, int> > region = random_region(schema);
+    //   int count = 0;
+    //   for (size_t j=0; j<points.size(); ++j) {
+    //     bool outside = false;
+    //     for (size_t k=0; k<region.size(); ++k) {
+    //       if (points[j][k] < region[k].first || points[j][k] >= region[k].second) {
+    //         outside = true;
+    //         break;
+    //       }
+    //     }
+    //     if (!outside) {
+    //       ++count;
+    //     }
+    //   }
+    //   int rq = ortho_range_query(nc, region);
+    //   if (count != rq) {
+    //     cerr << "PROPERTY 2 VIOLATED " << var(count) << var(rq) << endl;
+    //     for (size_t j=0; j<region.size(); ++j) {
+    //       cerr << region[j].first << "-" << region[j].second << " ";
+    //     }
+    //     cerr << endl;
+    //     {
+    //       ofstream os("ugh.dot");
+    //       print_dot(os, nc);
+    //     }
+    //     exit(1);
+    //   }
+    // }
   }
 }
 
@@ -276,5 +327,7 @@ void property_tests()
 int main(int argc, char **argv)
 {
   // smoke_tests();
-  property_tests();
+  // property_tests();
+  simple_1();
+  simple_2();
 }

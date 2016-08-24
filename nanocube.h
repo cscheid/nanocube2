@@ -36,6 +36,7 @@ struct PairHasher {
     return ((size_t) p.first * 65521 + (size_t) p.second * 65537) & 65535;
   }
 };
+
 template <typename Summary>
 struct Nanocube {
   typedef std::unordered_map<pair<int, int>, int, PairHasher> SummaryCache;
@@ -91,6 +92,8 @@ struct Nanocube {
 
   explicit Nanocube(const vector<int> &widths, bool debug=false);
   Nanocube(const Nanocube<Summary> &other);
+
+  void write_to_binary_stream(ostream &os);
 
  private:
   std::ofstream unopened;
