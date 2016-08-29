@@ -1,6 +1,7 @@
 // Copyright 2016 Arizona Board of Regents. See README.md and LICENSE for more info
 
 #include <iostream>
+#include <algorithm>
 using namespace std;
 
 template <typename T>
@@ -44,7 +45,7 @@ template <typename T>
 std::map<int, int> RefCountedVec<T>::compact()
 {
   std::map<int, int> result;
-  sort(free_list.begin(), free_list.end());
+  std::sort(free_list.begin(), free_list.end());
   bool b = sorted_array_has_no_duplicates(free_list);
   assert(b);
   int values_i = values.size() - 1;
