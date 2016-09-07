@@ -13,3 +13,5 @@ add_executable(main ${NANOCUBE_FILES} main.cc)
 add_executable(nanocube_tests ${NANOCUBE_FILES} tests.cc)
 add_executable(test_brightkite ${NANOCUBE_FILES} test_brightkite.cc)
 target_link_libraries(test_brightkite ${Boost_LIBRARIES})
+
+set(CMAKE_BUILD_TYPE Release)
