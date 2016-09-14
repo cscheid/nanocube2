@@ -86,7 +86,7 @@ vector<pair<int, int> > random_region(const vector<int> &schema)
 }
 
 // convert lat,lon to quad tree address
-int loc2addr(int lat, int lon, int qtreeLevel)
+int loc2addr(double lat, double lon, int qtreeLevel)
 {
     double xd = (lon + M_PI) / (2.0 * M_PI);
     double yd = (log(tan(M_PI / 4.0 + lat / 2.0)) + M_PI) / (2.0 * M_PI);
