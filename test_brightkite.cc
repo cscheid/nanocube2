@@ -142,7 +142,7 @@ int main(int argc, char **argv)
 
         // turn (x,y) into an address of the quadtree
         // Interleave bits
-        // TODO int or unsigned int??
+        // TODO use int64_t
         int z = MortonTable256[y >> 8]   << 17 | 
             MortonTable256[x >> 8]   << 16 |
             MortonTable256[y & 0xFF] <<  1 | 
@@ -193,8 +193,8 @@ int main(int argc, char **argv)
 
     {
         //nc.content_compact();
-        ofstream os("brightkite.nc");
-        nc.write_to_binary_stream(os);
+        //ofstream os("brightkite.nc");
+        //nc.write_to_binary_stream(os);
     }
 
     // std::string s("2001-10-9"); //2001-October-09
