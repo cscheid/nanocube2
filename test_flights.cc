@@ -187,5 +187,11 @@ int main(int argc, char **argv)
     double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
     cout << "Running time: " << elapsed_secs << endl;
 
+    {
+        //nc.content_compact();
+        ofstream os("flights.nc");
+        nc.write_to_binary_stream(os);
+    }
+
     test(nc, dataarray, schema);
 }
