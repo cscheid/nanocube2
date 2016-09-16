@@ -86,7 +86,7 @@ void smoke_tests()
 // simple 1
 
 void print_simple_nc(const vector<int> &schema,
-                     const vector<vector<int> > &points,
+                     const vector<vector<int64_t> > &points,
                      std::string filename)
 {
   Nanocube<int> nc(schema);
@@ -101,9 +101,9 @@ void print_simple_nc(const vector<int> &schema,
 void simple_1()
 {
   print_simple_nc({3, 3, 3}, { {0,0,0}, {3,3,3} }, "simple_1.dot");
-  vector<vector<int> > pts;
+  vector<vector<int64_t> > pts;
   for (size_t i=0; i<4; ++i) {
-    vector<int> pt;
+    vector<int64_t> pt;
     for (size_t j=0; j<3; ++j) {
       pt.push_back(rand() % 16);
     }
@@ -154,26 +154,26 @@ vector<int> random_schema()
   return result;
 }
 
-vector<int> random_point(const vector<int> &schema)
+vector<int64_t> random_point(const vector<int> &schema)
 {
-  vector<int> result;
-  for (int i=0; i<schema.size(); ++i) {
-    float u = uniform_variate();
-    int   r = (1 << schema.at(i));
-    int ui = std::max(0, std::min(r - 1, int(u * r)));
-    result.push_back(ui);
-  }
-  return result;
+    vector<int64_t> result;
+    for (int i=0; i<schema.size(); ++i) {
+        double u = uniform_variate();
+        int64_t r = ((int64_t)1 << schema.at(i));
+        int64_t ui = std::max<int64_t>(0, std::min<int64_t>(r - 1, int64_t(u * r)));
+        result.push_back(ui);
+    }
+    return result;
 }
 
-vector<pair<int, int> > random_region(const vector<int> &schema)
+vector<pair<int64_t, int64_t> > random_region(const vector<int> &schema)
 {
-  vector<int> p1 = random_point(schema), p2 = random_point(schema);
-  vector<pair<int, int> > result;
-  for (int i=0; i<p1.size(); ++i) {
-    result.push_back(make_pair(min(p1[i], p2[i]+1), max(p1[i], p2[i]+1)));
-  }
-  return result;
+    vector<int64_t> p1 = random_point(schema), p2 = random_point(schema);
+    vector<pair<int64_t, int64_t> > result;
+    for (int i=0; i<p1.size(); ++i) {
+        result.push_back(make_pair(min(p1[i], p2[i]+1), max(p1[i], p2[i]+1)));
+    }
+    return result;
 }
 
 Nanocube<int> random_nanocube(bool debug=false)
@@ -226,9 +226,9 @@ void property_tests()
     cout << "Schema: ";
     print_vector(schema);
     Nanocube<int> nc(schema);
-    vector<vector<int> > points;
+    vector<vector<int64_t> > points;
     for (int j=0; j<n_points; ++j) {
-      vector<int> point(random_point(schema));
+      vector<int64_t> point(random_point(schema));
       points.push_back(point);
       nc.insert(1, point);
       if (j == 10) {
