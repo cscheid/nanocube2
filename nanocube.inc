@@ -5,7 +5,7 @@
 
 namespace {
   
-inline int get_bit(int value, int bit)
+inline int get_bit(int64_t value, int bit)
 {
   return (value >> bit) & 1;
 }
@@ -120,7 +120,7 @@ inline void Nanocube<Summary>::release_node_ref(int node_index, int dim)
 
 template <typename Summary>
 pair<int, int> Nanocube<Summary>::insert_fresh_node
-(const Summary &summary, const vector<int> &addresses, int dim, int bit)
+(const Summary &summary, const vector<int64_t> &addresses, int dim, int bit)
 {
   assert(dims.size() == addresses.size());
   
@@ -162,7 +162,7 @@ pair<int, int> Nanocube<Summary>::insert_fresh_node
 // different data points)
 template <typename Summary>
 pair<int, int> Nanocube<Summary>::insert_node
-(const Summary &summary, const vector<int> &addresses, int current_node_index, int dim, int bit,
+(const Summary &summary, const vector<int64_t> &addresses, int current_node_index, int dim, int bit,
  SummaryCache &summary_cache)
 {
   // debug_out << "Entering index:" << current_node_index
@@ -192,7 +192,7 @@ pair<int, int> Nanocube<Summary>::insert_node
   
   NCDim &nc_dim = dims.at(dim);
   NCDimNode current_node = get_children(current_node_index, dim);
-  int current_address = addresses.at(dim);
+  int64_t current_address = addresses.at(dim);
   int width = nc_dim.width;
   pair<int, int> recursion_result;
   if (bit == width) {
@@ -418,7 +418,7 @@ pair<int, int> Nanocube<Summary>::merge
 
 template <typename Summary>
 void Nanocube<Summary>::insert
-(const Summary &summary, const vector<int> &addresses)
+(const Summary &summary, const vector<int64_t> &addresses)
 {
   SummaryCache summary_cache;
   pair<int, int> fresh_node = insert_fresh_node(summary, addresses, 0, 0);

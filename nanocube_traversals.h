@@ -10,7 +10,7 @@
 // the nodes vector denotes a vector of node indices and their respective depths
 // in the tree
 void minimal_cover(const NCDim &dim, int starting_node,
-                   int lower_bound, int upper_bound, int resolution,
+                   int64_t lower_bound, int64_t upper_bound, int resolution,
                    std::vector<pair<int, int> > &nodes,
                    bool insert_partial_overlap = false);
 
@@ -19,7 +19,7 @@ int select(const NCDim &dim, int starting_node, int value);
 
 template <typename Summary>
 Summary ortho_range_query(const Nanocube<Summary> &nc,
-                          const vector<pair<int, int> > &range,
+                          const vector<pair<int64_t, int64_t> > &range,
                           bool insert_partial_overlap = false,
                           int dim = 0,
                           int index = -1);

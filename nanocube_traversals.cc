@@ -6,22 +6,22 @@ using namespace std;
 namespace {
 
 struct BoundedIndex {
-  BoundedIndex(int l, int r, int i, int d): left(l), right(r), index(i), depth(d) {}
+  BoundedIndex(int64_t l, int64_t r, int64_t i, int64_t d): left(l), right(r), index(i), depth(d) {}
   BoundedIndex(const BoundedIndex &other):
       left(other.left), right(other.right), index(other.index), depth(other.depth) {};
   
-  int left, right, index, depth;
+  int64_t left, right, index, depth;
 };
 
 };
 
 void minimal_cover
-(const NCDim &dim, int starting_node, int lo, int up, int resolution,
+(const NCDim &dim, int starting_node, int64_t lo, int64_t up, int resolution,
  vector<pair<int, int> > &nodes, bool insert_partial_overlap)
 {
   stack<BoundedIndex> node_indices;
   
-  node_indices.push(BoundedIndex(0, 1 << dim.width, starting_node, 0));
+  node_indices.push(BoundedIndex(0, (int64_t)1 << dim.width, starting_node, 0));
   while (node_indices.size()) {
     BoundedIndex t = node_indices.top();
     const NCDimNode &node = dim.at(t.index);
@@ -36,7 +36,7 @@ void minimal_cover
       }
     } else {
       // avoid underflow for large values. Remember Java's lesson..
-      int mid = t.left + ((t.right - t.left) / 2);
+      int64_t mid = t.left + ((t.right - t.left) / 2);
       if (node.left != -1) {
         node_indices.push(BoundedIndex(t.left, mid, node.left, t.depth+1));
       }

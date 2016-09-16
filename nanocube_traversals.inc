@@ -2,7 +2,7 @@
 
 template <typename Summary>
 Summary ortho_range_query(const Nanocube<Summary> &nc,
-                          const vector<pair<int, int> > &range,
+                          const vector<pair<int64_t, int64_t> > &range,
                           bool insert_partial_overlap,
                           int dim, int index)
 {
