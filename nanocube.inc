@@ -160,6 +160,7 @@ pair<int, int> Nanocube<Summary>::insert_fresh_node
 // case where two different summaries get added to exactly the same
 // address (In other words, when a nanocube cannot resolve two
 // different data points)
+/*
 template <typename Summary>
 pair<int, int> Nanocube<Summary>::insert_node
 (const Summary &summary, const vector<int64_t> &addresses, int current_node_index, int dim, int bit,
@@ -363,47 +364,48 @@ pair<int, int> Nanocube<Summary>::insert_node
     }
   }
 }
+*/
 
 template <typename Summary>
 pair<int, int> Nanocube<Summary>::merge
-(int left, int right, int dim, SummaryCache &summary_cache)
+(int node1, int node2, int dim, SummaryCache &summary_cache)
 {
-  if (left == -1)
-    return make_pair(right, get_summary_index(right, dim));
-  if (right == -1)
-    return make_pair(left, get_summary_index(left, dim));
+  if (node1 == -1)
+    return make_pair(node2, get_summary_index(node2, dim));
+  if (node2== -1)
+    return make_pair(node1, get_summary_index(node1, dim));
 
   if (dim == dims.size()) {
-    auto f = summary_cache.find(make_pair(left, right));
+    auto f = summary_cache.find(make_pair(node1, node2));
     int new_summary_index;
     if (f == summary_cache.end()) {
-      const Summary &left_summary = summaries.values.at(left),
-                   &right_summary = summaries.values.at(right);
-      Summary new_summary = left_summary + right_summary;
+      const Summary &node1_summary = summaries.values.at(node1),
+                   &node2_summary = summaries.values.at(node2);
+      Summary new_summary = node1_summary + node2_summary;
       new_summary_index = summaries.insert(new_summary);
-      summary_cache[make_pair(left, right)] = new_summary_index;
+      summary_cache[make_pair(node1, node2)] = new_summary_index;
     } else {
       new_summary_index = f->second;
     }
     return make_pair(new_summary_index, new_summary_index);
   } else {
-    NCDimNode left_node = dims.at(dim).at(left),
-             right_node = dims.at(dim).at(right);
-    pair<int, int> left_merge = merge(left_node.left,  right_node.left,  dim,   summary_cache),
-                  right_merge = merge(left_node.right, right_node.right, dim,   summary_cache);
+    NCDimNode node1_node = dims.at(dim).at(node1),
+             node2_node = dims.at(dim).at(node2);
+    pair<int, int> left_merge = merge(node1_node.left,  node2_node.left,  dim,   summary_cache),
+                  right_merge = merge(node1_node.right, node2_node.right, dim,   summary_cache);
     pair<int, int> next_merge;
 
     int left_index = left_merge.first,
        right_index = right_merge.first;
     
     if        (left_index == -1 && right_index == -1) {
-      next_merge = merge(left_node.next, right_node.next, dim+1, summary_cache);
+      next_merge = merge(node1_node.next, node2_node.next, dim+1, summary_cache);
     } else if (left_index == -1 && right_index != -1) {
       next_merge = make_pair(dims.at(dim).at(right_index).next, right_merge.second);
     } else if (left_index != -1 && right_index == -1) {
       next_merge = make_pair(dims.at(dim).at(left_index).next, left_merge.second);
     } else if (left_index != -1 && right_index != -1) {
-      next_merge = merge(left_node.next, right_node.next, dim+1, summary_cache);
+      next_merge = merge(node1_node.next, node2_node.next, dim+1, summary_cache);
     }
     
     NCDimNode new_node(left_merge.first, right_merge.first, next_merge.first);
