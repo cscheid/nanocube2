@@ -14,40 +14,10 @@
 #include "nanocube.h"
 #include "nanocube_traversals.h"
 #include "debug.h"
+#include "test_utils.h"
 
 int atoi(const std::string &s) { return atoi(s.c_str()); }
 double atof(const std::string &s) { return atof(s.c_str()); }
-
-float uniform_variate()
-{
-    typedef boost::mt19937 RNGType;
-    static RNGType rng;
-    static boost::uniform_01<> d;
-    static boost::variate_generator< RNGType, boost::uniform_01<> > gen(rng, d);
-    return gen();
-}
-
-vector<int64_t> random_point(const vector<int> &schema)
-{
-    vector<int64_t> result;
-    for (int i=0; i<schema.size(); ++i) {
-        double u = uniform_variate();
-        int64_t r = ((int64_t)1 << schema.at(i));
-        int64_t ui = std::max<int64_t>(0, std::min<int64_t>(r - 1, int64_t(u * r)));
-        result.push_back(ui);
-    }
-    return result;
-}
-
-vector<pair<int64_t, int64_t> > random_region(const vector<int> &schema)
-{
-    vector<int64_t> p1 = random_point(schema), p2 = random_point(schema);
-    vector<pair<int64_t, int64_t> > result;
-    for (int i=0; i<p1.size(); ++i) {
-        result.push_back(make_pair(min(p1[i], p2[i]+1), max(p1[i], p2[i]+1)));
-    }
-    return result;
-}
 
 // convert lat,lon to quad tree address
 int64_t loc2addr(double lat, double lon, int qtreeLevel)
