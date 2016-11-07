@@ -13,6 +13,7 @@
 #include "nanocube_traversals.h"
 #include "debug.h"
 #include "mongoose.h"
+#include "test_utils.h"
 
 static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
@@ -20,6 +21,7 @@ static struct mg_serve_http_opts s_http_server_opts;
 static int qtreeLevel = 10;
 static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
 static Nanocube<int> nc(schema);
+static vector<pair<int64_t,int64_t> > dataarray;
 
 // convert lat,lon to quad tree address
 static int64_t loc2addr(double lat, double lon, int qtreeLevel)
@@ -41,14 +43,12 @@ static int64_t loc2addr(double lat, double lon, int qtreeLevel)
 
 static void buildCubes()
 {
-    std::cout << "Start building Gaussian Cubes..." << std::endl;
+    cout << "Start building Gaussian Cubes..." << endl;
     using namespace boost::gregorian;
     using namespace boost::posix_time;
 
     ifstream is("./flights_100K.csv.txt");
     string s;
-
-    vector<pair<int64_t,int64_t> > dataarray;
 
     int i = 0;
 
@@ -102,16 +102,17 @@ static void handle_sum_call(struct mg_connection *nc, struct http_message *hm) {
   mg_send_http_chunk(nc, "", 0); /* Send empty chunk, the end of response */
 }
 
-static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
+static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
   struct http_message *hm = (struct http_message *) ev_data;
 
   switch (ev) {
     case MG_EV_HTTP_REQUEST:
       if (mg_vcmp(&hm->uri, "/api/v1/sum") == 0) {
-        handle_sum_call(nc, hm); /* Handle RESTful call */
+        handle_sum_call(c, hm); /* Handle RESTful call */
+        test(nc, dataarray, schema);
       } 
       else {
-        mg_serve_http(nc, hm, s_http_server_opts); /* Serve static content */
+        mg_serve_http(c, hm, s_http_server_opts); /* Serve static content */
       }
       break;
     default:
