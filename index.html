@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>RESTful API demo</title>
+  <title>Gaussian Cubes Query Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style type="text/css">
     * { outline: none; }
@@ -28,9 +28,9 @@
 <script language="javascript" type="text/javascript">
   jQuery(function() {
 
-    $(document).on('keyup', '#n1, #n2', function() {
+    $('#btn_query').on('click', function() {
       $.ajax({
-        url: '/api/v1/sum',
+        url: '/query',
         method: 'POST',
         dataType: 'json',
         data: { n1: $('#n1').val(), n2: $('#n2').val() },
@@ -45,22 +45,24 @@
 </head>
 <body>
   <div class="content">
-    <h1>RESTful API demo.</h1>
+    <h1>Gaussian Cubes Query Test</h1>
 
     <p>
-      This page demonstrates how Mongoose could be used to implement
-      RESTful APIs. Start typing numbers into the text fields below.
-      Browser sends two numbers to <tt>/api/v1/sum</tt> URI.
-      Web server calclulates the sum and returns the result.
+      This page demonstrates using Mongoose to implement Gaussian Cubes server.
     </p>
 
     <div>
       <label>Number 1:</label> <input type="text" id="n1" />
-    </div><div>
+    </div>
+    <div>
       <label>Number 2:</label> <input type="text" id="n2" />
-    </div><div>
+    </div>
+    <div>
      <label>Result:</label> <span id="result">&nbsp;</span>
-    </div><div>
+    </div>
+    <div>
+        <button type="button" id="btn_query">Query</button>
+    </div>
 
   </div>
 </body>
