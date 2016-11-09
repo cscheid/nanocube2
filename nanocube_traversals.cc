@@ -110,7 +110,8 @@ string QueryTestFind(Nanocube<int> &gc, int dim, int64_t address, int depth, boo
         query_find(gc.dims.at(dim), gc.base_root, address, depth, nodes);
         if (nodes.size() > 0) {
             std::stringstream buffer;
-            buffer << nodes[0].index << endl;
+            buffer << "[\"" << nodes[0].index << "-" << nodes[0].depth;
+            buffer << "-" << nodes[0].address << "\"]";
             return buffer.str();
         } else {
             return "";
@@ -131,11 +132,13 @@ string QueryTestSplit(Nanocube<int> &gc, int dim, int64_t prefix, int depth,
         query_split(gc.dims.at(dim), gc.base_root, prefix, depth, resolution, nodes);
         if (nodes.size() > 0) {
             std::stringstream buffer;
-            buffer << "\"";
+            buffer << "[";
             for(int i = 0; i < nodes.size(); i ++) {
-                buffer << nodes[i].index << "-" << nodes[i].depth << "-" << nodes[i].address << ",";
+                if( i != 0) buffer << ",";
+                buffer << "\"" << nodes[i].index << "-" << nodes[i].depth;
+                buffer << "-" << nodes[i].address << "\"";
             }
-            buffer << "\"";
+            buffer << "]";
             return buffer.str();
         } else {
             return "";

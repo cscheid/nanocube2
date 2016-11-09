@@ -33,12 +33,16 @@
         url: '/query',
         method: 'POST',
         dataType: 'json',
-        data: { addr: $('#addr').val(), 
+        data: { op: $('#op').val(),
+                addr: $('#addr').val(), 
                 depth: $('#depth').val(),
-                resolution: $('#resolution').val()},
+                resolution: $('#resolution').val(),
+                lbound: $('#lbound').val(),
+                ubound: $('#ubound').val()
+              },
         success: function(json) {
             console.log(json.result);
-          $('#result').html(json.result);
+          $('#result').html(JSON.stringify(json.result));
         }
       });
     });
@@ -51,7 +55,8 @@
     <h1>Gaussian Cubes Query Test</h1>
 
     <div>
-      <label>Operation: Find|Split</label>
+      <label>Operation:</label> <input type="text" id="op" />
+      <span>(find=0,split=1,range=2)</span>
     </div>
     <div>
       <label>Address:</label> <input type="text" id="addr" />
@@ -61,6 +66,12 @@
     </div>
     <div>
       <label>Resolution:</label> <input type="text" id="resolution" />
+    </div>
+    <div>
+      <label>Lower Bound:</label> <input type="text" id="lbound" />
+    </div>
+    <div>
+      <label>Upper Bound:</label> <input type="text" id="ubound" />
     </div>
     <div>
         <button type="button" id="btn_query">Query</button>

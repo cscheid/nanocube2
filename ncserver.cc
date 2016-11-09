@@ -89,23 +89,30 @@ static void handle_sum_call(struct mg_connection *c, struct http_message *hm) {
   // test query
   //test(nc, dataarray, schema);
 
-  char addr[100], depth[100], resolution[100];
+  char op[10], addr[100], depth[100], resolution[100], lbound[100], ubound[100];
   string result;
 
   /* Get form variables */
+  mg_get_http_var(&hm->body, "op", op, sizeof(op));
   mg_get_http_var(&hm->body, "addr", addr, sizeof(addr));
   mg_get_http_var(&hm->body, "depth", depth, sizeof(depth));
   mg_get_http_var(&hm->body, "resolution", resolution, sizeof(resolution));
+  mg_get_http_var(&hm->body, "lbound", lbound, sizeof(lbound));
+  mg_get_http_var(&hm->body, "ubound", ubound, sizeof(ubound));
 
   /* Send headers */
   mg_printf(c, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
   /* Compute the result and send it back as a JSON object */
-  //result = strtod(lbnd, NULL) + strtod(ubnd, NULL);
-  //result = QueryTestFind(nc, 0, strtod(addr, NULL), strtod(depth, NULL), true, dataarray, schema);
-
-  result = QueryTestSplit(nc, 0, strtod(addr, NULL), strtod(depth, NULL),
-                          strtod(resolution, NULL), true, dataarray, schema);
+  int operation = (int)strtod(op, NULL);
+  switch(operation) {
+      case 0: result = QueryTestFind(nc, 0, strtod(addr, NULL), strtod(depth, NULL), 
+                                     true, dataarray, schema); break;
+      case 1: result = QueryTestSplit(nc, 0, strtod(addr, NULL), strtod(depth, NULL),
+                                      strtod(resolution, NULL), true, 
+                                      dataarray, schema); break;
+      case 2: break;
+  }
   mg_printf_http_chunk(c, "{ \"result\": %s }", result.c_str());
   mg_send_http_chunk(c, "", 0); /* Send empty chunk, the end of response */
 
