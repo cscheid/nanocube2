@@ -11,7 +11,7 @@ Summary ortho_range_query(const Nanocube<Summary> &nc,
   }
 
   std::vector<std::pair<int, int> > result;
-  minimal_cover(nc.dims.at(dim), index,
+  query_range(nc.dims.at(dim), index,
                 range.at(dim).first, range.at(dim).second, nc.dims.at(dim).width,
                 result,
                 insert_partial_overlap);

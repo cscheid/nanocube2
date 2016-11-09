@@ -15,7 +15,7 @@ struct BoundedIndex {
 
 };
 
-void minimal_cover
+void query_range 
 (const NCDim &dim, int starting_node, int64_t lo, int64_t up, int resolution,
  vector<pair<int, int> > &nodes, bool insert_partial_overlap)
 {
@@ -47,12 +47,15 @@ void minimal_cover
   }
 }
 
-int select(const NCDim &dim, int starting_node, int64_t value, int depth)
+void query_find(const NCDim &dim, int starting_node, int64_t value, int depth,
+                std::vector<pair<int, int> > &nodes)
 {
   int d = depth < dim.width ? depth : dim.width;
   int result = starting_node;
   for (int i=0; i<d; ++i) {
-    if (result == -1) return -1;
+    if (result == -1) {
+        return;
+    }
     const NCDimNode &node = dim.nodes.values.at(result);
     int which_direction = get_bit(value, d-i-1);
     if (which_direction) {
@@ -62,14 +65,19 @@ int select(const NCDim &dim, int starting_node, int64_t value, int depth)
     }
     //cout << result << " | " << which_direction << " <-- " << value << endl;
   }
-  return result;
+  nodes.push_back(make_pair(result, depth));
 }
 
-int GCQueryFind(Nanocube<int> &gc, int dim, int64_t address, int depth, bool validate, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
+int QueryTestFind(Nanocube<int> &gc, int dim, int64_t address, int depth, bool validate, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
 {
+    std::vector<pair<int, int> > nodes;
     if(dim == 0) {
-        int index = select(gc.dims.at(dim), gc.base_root, address, depth);
-        return index;
+        query_find(gc.dims.at(dim), gc.base_root, address, depth, nodes);
+        if (nodes.size() > 0) {
+            return nodes[0].first;
+        } else {
+            return -1;
+        }
     } else {
         return -1;
     }
