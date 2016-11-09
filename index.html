@@ -29,6 +29,9 @@
   jQuery(function() {
 
     $('#btn_query').on('click', function() {
+      // clear result first
+      $('#result').html("");
+
       $.ajax({
         url: '/query',
         method: 'POST',

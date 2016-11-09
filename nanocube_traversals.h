@@ -20,8 +20,8 @@ struct QueryNode{
 // the nodes vector denotes a vector of node indices and their respective depths
 // in the tree
 void query_range(const NCDim &dim, int starting_node,
-                   int64_t lower_bound, int64_t upper_bound, int resolution,
-                   std::vector<pair<int, int> > &nodes,
+                   int64_t lower_bound, int64_t upper_bound, int depth,
+                   std::vector<QueryNode> &nodes,
                    bool insert_partial_overlap = false);
 
 // select single node from any given dimension. returns node index. O(dim.depth)
@@ -46,11 +46,17 @@ string QueryTestSplit(Nanocube<int> &gc, int dim, int64_t prefix, int depth,
                    vector<pair<int64_t,int64_t> > &dataarray,
                    vector<int> &schema);
 
-template <typename Summary>
-Summary ortho_range_query(const Nanocube<Summary> &nc,
-                          const vector<pair<int64_t, int64_t> > &range,
-                          bool insert_partial_overlap = false,
-                          int dim = 0,
-                          int index = -1);
+string QueryTestRange(Nanocube<int> &gc, int dim, int64_t lo, int64_t up,
+                      int depth,
+                      bool validate, 
+                      vector<pair<int64_t,int64_t> > &dataarray,
+                      vector<int> &schema);
+
+//template <typename Summary>
+//Summary ortho_range_query(const Nanocube<Summary> &nc,
+                          //const vector<pair<int64_t, int64_t> > &range,
+                          //bool insert_partial_overlap = false,
+                          //int dim = 0,
+                          //int index = -1);
 
 #include "nanocube_traversals.inc"

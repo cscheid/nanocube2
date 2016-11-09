@@ -38,24 +38,24 @@ vector<pair<int64_t, int64_t> > random_region(const vector<int> &schema)
     return result;
 }
 
-void test(Nanocube<int> &nc, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
-{
-    /**************************************************/
-    // Test
-    /**************************************************/
-    int n_regions = 10;
-    for (int l=0; l<n_regions; ++l) {
-        vector<pair<int64_t, int64_t> > region = random_region(schema);
-        int rq = ortho_range_query(nc, region);
-        int count = 0;
-        for(int dlength = 0; dlength < dataarray.size(); dlength++) {
-            if( (dataarray[dlength].first > region[0].first && 
-                        dataarray[dlength].first < region[0].second) && 
-                    (dataarray[dlength].second > region[1].first &&
-                     dataarray[dlength].second < region[1].second) ) {
-                count ++;
-            }
-        }
-        cout << "Query from Nanocubea: "<< rq << " | Linear scan: " << count << endl;
-    }
-}
+//void test(Nanocube<int> &nc, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
+//{
+    //[>************************************************<]
+    //// Test
+    //[>************************************************<]
+    //int n_regions = 10;
+    //for (int l=0; l<n_regions; ++l) {
+        //vector<pair<int64_t, int64_t> > region = random_region(schema);
+        //int rq = ortho_range_query(nc, region);
+        //int count = 0;
+        //for(int dlength = 0; dlength < dataarray.size(); dlength++) {
+            //if( (dataarray[dlength].first > region[0].first && 
+                        //dataarray[dlength].first < region[0].second) && 
+                    //(dataarray[dlength].second > region[1].first &&
+                     //dataarray[dlength].second < region[1].second) ) {
+                //count ++;
+            //}
+        //}
+        //cout << "Query from Nanocubea: "<< rq << " | Linear scan: " << count << endl;
+    //}
+//}

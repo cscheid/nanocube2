@@ -17,23 +17,23 @@ struct BoundedIndex {
 };
 
 void query_range 
-(const NCDim &dim, int starting_node, int64_t lo, int64_t up, int resolution,
- vector<pair<int, int> > &nodes, bool insert_partial_overlap)
+(const NCDim &dim, int starting_node, int64_t lo, int64_t up, int depth,
+ vector<QueryNode> &nodes, bool insert_partial_overlap)
 {
   stack<BoundedIndex> node_indices;
-  
-  node_indices.push(BoundedIndex(0, (int64_t)1 << dim.width, starting_node, 0));
+  //node_indices.push(BoundedIndex(0, (int64_t)1 << dim.width, starting_node, 0));
+  node_indices.push(BoundedIndex(0, (int64_t)1 << depth, starting_node, 0));
   while (node_indices.size()) {
     BoundedIndex t = node_indices.top();
     const NCDimNode &node = dim.at(t.index);
     node_indices.pop();
     if (t.left >= lo && t.right <= up) {
-      nodes.push_back(make_pair(t.index, t.depth));
+      nodes.push_back(QueryNode(t.index, t.depth, -1));
     } else if (up <= t.left || t.right <= lo) {
       continue;
-    } else if (t.depth == resolution) {
+    } else if (t.depth == depth) {
       if (insert_partial_overlap) {
-        nodes.push_back(make_pair(t.index, t.depth));
+        nodes.push_back(QueryNode(t.index, t.depth, -1));
       }
     } else {
       // avoid underflow for large values. Remember Java's lesson..
@@ -130,6 +130,33 @@ string QueryTestSplit(Nanocube<int> &gc, int dim, int64_t prefix, int depth,
     std::vector<QueryNode> nodes;
     if(dim == 0) {
         query_split(gc.dims.at(dim), gc.base_root, prefix, depth, resolution, nodes);
+        if (nodes.size() > 0) {
+            std::stringstream buffer;
+            buffer << "[";
+            for(int i = 0; i < nodes.size(); i ++) {
+                if( i != 0) buffer << ",";
+                buffer << "\"" << nodes[i].index << "-" << nodes[i].depth;
+                buffer << "-" << nodes[i].address << "\"";
+            }
+            buffer << "]";
+            return buffer.str();
+        } else {
+            return "";
+        }
+    } else {
+        return "";
+    }
+}
+
+string QueryTestRange(Nanocube<int> &gc, int dim, int64_t lo, int64_t up,
+                      int depth,
+                      bool validate, 
+                      vector<pair<int64_t,int64_t> > &dataarray,
+                      vector<int> &schema)
+{
+    std::vector<QueryNode> nodes;
+    if(dim == 0) {
+        query_range(gc.dims.at(dim), gc.base_root, lo, up, depth, nodes);
         if (nodes.size() > 0) {
             std::stringstream buffer;
             buffer << "[";

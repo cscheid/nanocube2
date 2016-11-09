@@ -13,7 +13,7 @@
 #include "nanocube_traversals.h"
 #include "debug.h"
 #include "mongoose.h"
-//#include "test_utils.h"
+#include "test_utils.h"
 
 static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
@@ -111,7 +111,10 @@ static void handle_sum_call(struct mg_connection *c, struct http_message *hm) {
       case 1: result = QueryTestSplit(nc, 0, strtod(addr, NULL), strtod(depth, NULL),
                                       strtod(resolution, NULL), true, 
                                       dataarray, schema); break;
-      case 2: break;
+      case 2: 
+              result = QueryTestRange(nc, 0, strtod(lbound, NULL), strtod(ubound, NULL),
+                                      strtod(depth, NULL), true, 
+                                      dataarray, schema); break;
   }
   mg_printf_http_chunk(c, "{ \"result\": %s }", result.c_str());
   mg_send_http_chunk(c, "", 0); /* Send empty chunk, the end of response */
