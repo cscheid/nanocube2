@@ -33,7 +33,7 @@
         url: '/query',
         method: 'POST',
         dataType: 'json',
-        data: { n1: $('#n1').val(), n2: $('#n2').val() },
+        data: { addr: $('#addr').val(), depth: $('#depth').val() },
         success: function(json) {
           $('#result').html(json.result);
         }
@@ -52,10 +52,13 @@
     </p>
 
     <div>
-      <label>Number 1:</label> <input type="text" id="n1" />
+      <label>Operation: find</label>
     </div>
     <div>
-      <label>Number 2:</label> <input type="text" id="n2" />
+      <label>Address:</label> <input type="text" id="addr" />
+    </div>
+    <div>
+      <label>Depth:</label> <input type="text" id="depth" />
     </div>
     <div>
      <label>Result:</label> <span id="result">&nbsp;</span>

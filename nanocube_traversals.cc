@@ -47,18 +47,20 @@ void minimal_cover
   }
 }
 
-int select(const NCDim &dim, int starting_node, int value)
+int select(const NCDim &dim, int starting_node, int64_t value, int depth)
 {
+  int d = depth < dim.width ? depth : dim.width;
   int result = starting_node;
-  for (int i=0; i<dim.width; ++i) {
+  for (int i=0; i<d; ++i) {
     if (result == -1) return -1;
     const NCDimNode &node = dim.nodes.values.at(result);
-    int which_direction = get_bit(result, dim.width-i-1);
+    int which_direction = get_bit(value, d-i-1);
     if (which_direction) {
       result = node.right;
     } else {
       result = node.left;
     }
+    //cout << result << " | " << which_direction << " <-- " << value << endl;
   }
   return result;
 }

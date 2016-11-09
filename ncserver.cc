@@ -87,20 +87,21 @@ static void buildCubes()
 
 static void handle_sum_call(struct mg_connection *c, struct http_message *hm) {
   // test query
-  test(nc, dataarray, schema);
+  //test(nc, dataarray, schema);
 
-  char n1[100], n2[100];
+  char addr[100], depth[100];
   double result;
 
   /* Get form variables */
-  mg_get_http_var(&hm->body, "n1", n1, sizeof(n1));
-  mg_get_http_var(&hm->body, "n2", n2, sizeof(n2));
+  mg_get_http_var(&hm->body, "addr", addr, sizeof(addr));
+  mg_get_http_var(&hm->body, "depth", depth, sizeof(depth));
 
   /* Send headers */
   mg_printf(c, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
   /* Compute the result and send it back as a JSON object */
-  result = strtod(n1, NULL) + strtod(n2, NULL);
+  //result = strtod(lbnd, NULL) + strtod(ubnd, NULL);
+  result = GCQueryFind(nc, 0, strtod(addr, NULL), strtod(depth, NULL), true, dataarray, schema);
   mg_printf_http_chunk(c, "{ \"result\": %lf }", result);
   mg_send_http_chunk(c, "", 0); /* Send empty chunk, the end of response */
 
