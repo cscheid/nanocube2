@@ -47,7 +47,7 @@ static void buildCubes()
     using namespace boost::gregorian;
     using namespace boost::posix_time;
 
-    ifstream is("./flights_100K.csv.txt");
+    ifstream is("../sample_data/flights_100K.csv.txt");
     string s;
 
     int i = 0;
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
   // build Gaussian Cubes
   buildCubes();
 
-  printf("Starting RESTful server on port %s, serving %s\n", s_http_port,
+  printf("Starting server on port %s, serving %s\n", s_http_port,
          s_http_server_opts.document_root);
 
   for (;;) {
