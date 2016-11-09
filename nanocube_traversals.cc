@@ -7,11 +7,13 @@ using namespace std;
 namespace {
 
 struct BoundedIndex {
-  BoundedIndex(int64_t l, int64_t r, int64_t i, int64_t d): left(l), right(r), index(i), depth(d) {}
+  BoundedIndex(int64_t l, int64_t r, int64_t a, int i, int d): left(l), right(r), address(a), index(i), depth(d) {}
   BoundedIndex(const BoundedIndex &other):
-      left(other.left), right(other.right), index(other.index), depth(other.depth) {};
+      left(other.left), right(other.right), address(other.address), index(other.index), depth(other.depth) {};
   
-  int64_t left, right, index, depth;
+  int64_t left, right;
+  int64_t address;
+  int index, depth;
 };
 
 };
@@ -22,27 +24,27 @@ void query_range
 {
   stack<BoundedIndex> node_indices;
   //node_indices.push(BoundedIndex(0, (int64_t)1 << dim.width, starting_node, 0));
-  node_indices.push(BoundedIndex(0, (int64_t)1 << depth, starting_node, 0));
+  node_indices.push(BoundedIndex(0, (int64_t)1 << depth, 0, starting_node, 0));
   while (node_indices.size()) {
     BoundedIndex t = node_indices.top();
     const NCDimNode &node = dim.at(t.index);
     node_indices.pop();
     if (t.left >= lo && t.right <= up) {
-      nodes.push_back(QueryNode(t.index, t.depth, -1));
+      nodes.push_back(QueryNode(t.index, t.depth, t.address));
     } else if (up <= t.left || t.right <= lo) {
       continue;
     } else if (t.depth == depth) {
       if (insert_partial_overlap) {
-        nodes.push_back(QueryNode(t.index, t.depth, -1));
+        nodes.push_back(QueryNode(t.index, t.depth, t.address));
       }
     } else {
       // avoid underflow for large values. Remember Java's lesson..
       int64_t mid = t.left + ((t.right - t.left) / 2);
       if (node.left != -1) {
-        node_indices.push(BoundedIndex(t.left, mid, node.left, t.depth+1));
+        node_indices.push(BoundedIndex(t.left, mid, t.address << 1, node.left, t.depth+1));
       }
       if (node.right != -1) {
-        node_indices.push(BoundedIndex(mid, t.right, node.right, t.depth+1));
+        node_indices.push(BoundedIndex(mid, t.right, (t.address << 1)+1, node.right, t.depth+1));
       }
     }
   }
