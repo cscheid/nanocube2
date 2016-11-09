@@ -1,5 +1,6 @@
 #include "nanocube_traversals.h"
 #include <stack>
+#include <sstream>
 
 using namespace std;
 
@@ -48,7 +49,7 @@ void query_range
 }
 
 void query_find(const NCDim &dim, int starting_node, int64_t value, int depth,
-                std::vector<pair<int, int> > &nodes)
+                std::vector<QueryNode> &nodes)
 {
   int d = depth < dim.width ? depth : dim.width;
   int result = starting_node;
@@ -65,21 +66,81 @@ void query_find(const NCDim &dim, int starting_node, int64_t value, int depth,
     }
     //cout << result << " | " << which_direction << " <-- " << value << endl;
   }
-  nodes.push_back(make_pair(result, depth));
+  if(result != -1) {
+      nodes.push_back(QueryNode(result, depth, value));
+  }
 }
 
-int QueryTestFind(Nanocube<int> &gc, int dim, int64_t address, int depth, bool validate, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
+void query_split(const NCDim &dim, int starting_node,
+                 int64_t prefix, int depth, int resolution,
+                 std::vector<QueryNode> &nodes)
 {
-    std::vector<pair<int, int> > nodes;
+    vector<QueryNode> splitNode;
+    query_find(dim, starting_node, prefix, depth, splitNode);
+    if (splitNode.size() == 0) {
+        return;
+    }
+
+    stack<QueryNode> s;
+    s.push(splitNode[0]);
+
+    while(s.size()) {
+        QueryNode t = s.top();
+        //cout << t.index << ":" << t.depth << ":" << t.address << endl;
+        const NCDimNode &node = dim.at(t.index);
+        s.pop();
+        if (t.depth == depth+resolution || t.depth == dim.width) {
+          nodes.push_back(t);
+        } else {
+          if (node.left != -1) {
+            s.push(QueryNode(node.left, t.depth+1, t.address << 1));
+          }
+          if (node.right != -1) {
+            s.push(QueryNode(node.right, t.depth+1, (t.address << 1) + 1));
+          }
+        }
+    }
+}
+
+
+string QueryTestFind(Nanocube<int> &gc, int dim, int64_t address, int depth, bool validate, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
+{
+    std::vector<QueryNode> nodes;
     if(dim == 0) {
         query_find(gc.dims.at(dim), gc.base_root, address, depth, nodes);
         if (nodes.size() > 0) {
-            return nodes[0].first;
+            std::stringstream buffer;
+            buffer << nodes[0].index << endl;
+            return buffer.str();
         } else {
-            return -1;
+            return "";
         }
     } else {
-        return -1;
+        return "";
     }
+}
 
+string QueryTestSplit(Nanocube<int> &gc, int dim, int64_t prefix, int depth,
+                   int resolution,
+                   bool validate, 
+                   vector<pair<int64_t,int64_t> > &dataarray,
+                   vector<int> &schema)
+{
+    std::vector<QueryNode> nodes;
+    if(dim == 0) {
+        query_split(gc.dims.at(dim), gc.base_root, prefix, depth, resolution, nodes);
+        if (nodes.size() > 0) {
+            std::stringstream buffer;
+            buffer << "\"";
+            for(int i = 0; i < nodes.size(); i ++) {
+                buffer << nodes[i].index << "-" << nodes[i].depth << "-" << nodes[i].address << ",";
+            }
+            buffer << "\"";
+            return buffer.str();
+        } else {
+            return "";
+        }
+    } else {
+        return "";
+    }
 }
