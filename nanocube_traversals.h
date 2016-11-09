@@ -24,4 +24,9 @@ Summary ortho_range_query(const Nanocube<Summary> &nc,
                           int dim = 0,
                           int index = -1);
 
+int GCQueryFind(Nanocube<int> &gc, int dim, int64_t address, int depth,
+                bool validate, 
+                vector<pair<int64_t,int64_t> > &dataarray,
+                vector<int> &schema);
+
 #include "nanocube_traversals.inc"

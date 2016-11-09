@@ -65,3 +65,13 @@ int select(const NCDim &dim, int starting_node, int64_t value, int depth)
   return result;
 }
 
+int GCQueryFind(Nanocube<int> &gc, int dim, int64_t address, int depth, bool validate, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
+{
+    if(dim == 0) {
+        int index = select(gc.dims.at(dim), gc.base_root, address, depth);
+        return index;
+    } else {
+        return -1;
+    }
+
+}
