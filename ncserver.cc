@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iterator>
 #include <ctime>
+#include <typeinfo>
 
 #include <boost/random.hpp>
 #include <boost/generator_iterator.hpp>
@@ -9,11 +10,16 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/algorithm/string.hpp>
 
+#include "mongoose.h"
+#include "json.hpp"
+
 #include "nanocube.h"
 #include "nanocube_traversals.h"
+#include "nanocube_utils.h"
 #include "debug.h"
-#include "mongoose.h"
-#include "test_utils.h"
+//#include "test_utils.h"
+
+using json = nlohmann::json;
 
 static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
@@ -43,7 +49,7 @@ static int64_t loc2addr(double lat, double lon, int qtreeLevel)
 
 static void buildCubes()
 {
-    cout << "Start building Gaussian Cubes..." << endl;
+    cout << "Start building Nanocubes..." << endl;
     using namespace boost::gregorian;
     using namespace boost::posix_time;
 
@@ -86,39 +92,27 @@ static void buildCubes()
 }
 
 static void handle_sum_call(struct mg_connection *c, struct http_message *hm) {
-  // test query
-  //test(nc, dataarray, schema);
 
-  char op[10], addr[100], depth[100], resolution[100], lbound[100], ubound[100];
-  string result;
+  auto q = json::parse(string(hm->body.p, hm->body.len));
 
-  /* Get form variables */
-  mg_get_http_var(&hm->body, "op", op, sizeof(op));
-  mg_get_http_var(&hm->body, "addr", addr, sizeof(addr));
-  mg_get_http_var(&hm->body, "depth", depth, sizeof(depth));
-  mg_get_http_var(&hm->body, "resolution", resolution, sizeof(resolution));
-  mg_get_http_var(&hm->body, "lbound", lbound, sizeof(lbound));
-  mg_get_http_var(&hm->body, "ubound", ubound, sizeof(ubound));
+  int operation = jtod(q["op"]);
+  int64_t addr = jtod(q["addr"]);
+  int depth = jtod(q["depth"]);
+  int resolution = jtod(q["resolution"]);
+  int64_t lbound = jtod(q["lbound"]);
+  int64_t ubound = jtod(q["ubound"]);
 
-  /* Send headers */
-  mg_printf(c, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
-
-  /* Compute the result and send it back as a JSON object */
-  int operation = (int)strtod(op, NULL);
+  std::string result;
   switch(operation) {
-      case 0: result = QueryTestFind(nc, 0, strtod(addr, NULL), strtod(depth, NULL), 
-                                     true, dataarray, schema); break;
-      case 1: result = QueryTestSplit(nc, 0, strtod(addr, NULL), strtod(depth, NULL),
-                                      strtod(resolution, NULL), true, 
-                                      dataarray, schema); break;
-      case 2: 
-              result = QueryTestRange(nc, 0, strtod(lbound, NULL), strtod(ubound, NULL),
-                                      strtod(depth, NULL), true, 
-                                      dataarray, schema); break;
+      case 0: result = QueryTestFind(nc, 0, addr, depth, true, dataarray, schema); break;
+      case 1: result = QueryTestSplit(nc, 0, addr, depth, resolution, true, dataarray, schema); break;
+      case 2: result = QueryTestRange(nc, 0, lbound, ubound, depth, true, dataarray, schema); break;
   }
+
+  /* Send result */
+  mg_printf(c, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
   mg_printf_http_chunk(c, "{ \"result\": %s }", result.c_str());
   mg_send_http_chunk(c, "", 0); /* Send empty chunk, the end of response */
-
 }
 
 static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {

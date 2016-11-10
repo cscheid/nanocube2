@@ -31,18 +31,19 @@
     $('#btn_query').on('click', function() {
       // clear result first
       $('#result').html("");
+      var query = { op: $('#op').val(),
+            addr: $('#addr').val(), 
+            depth: $('#depth').val(),
+            resolution: $('#resolution').val(),
+            lbound: $('#lbound').val(),
+            ubound: $('#ubound').val()
+          };
 
       $.ajax({
         url: '/query',
         method: 'POST',
         dataType: 'json',
-        data: { op: $('#op').val(),
-                addr: $('#addr').val(), 
-                depth: $('#depth').val(),
-                resolution: $('#resolution').val(),
-                lbound: $('#lbound').val(),
-                ubound: $('#ubound').val()
-              },
+        data: JSON.stringify(query),
         success: function(json) {
             console.log(json.result);
           $('#result').html(JSON.stringify(json.result));

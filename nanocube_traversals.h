@@ -35,22 +35,29 @@ void query_split(const NCDim &dim, int starting_node,
 
 //////////////////////////////////////////////////////////////////////////
 
-string QueryTestFind(Nanocube<int> &gc, int dim, int64_t address, int depth,
+string QueryTestFind(Nanocube<int> &nc, int dim, int64_t address, int depth,
                 bool validate, 
                 vector<pair<int64_t,int64_t> > &dataarray,
                 vector<int> &schema);
 
-string QueryTestSplit(Nanocube<int> &gc, int dim, int64_t prefix, int depth,
+string QueryTestSplit(Nanocube<int> &nc, int dim, int64_t prefix, int depth,
                    int resolution,
                    bool validate, 
                    vector<pair<int64_t,int64_t> > &dataarray,
                    vector<int> &schema);
 
-string QueryTestRange(Nanocube<int> &gc, int dim, int64_t lo, int64_t up,
+string QueryTestRange(Nanocube<int> &nc, int dim, int64_t lo, int64_t up,
                       int depth,
                       bool validate, 
                       vector<pair<int64_t,int64_t> > &dataarray,
                       vector<int> &schema);
+
+template <typename Summary>
+Summary Query1D(const Nanocube<Summary> &nc,
+                const vector<pair<int64_t, int64_t> > &range,
+                bool insert_partial_overlap = false,
+                int dim = 0,
+                int index = -1);
 
 //template <typename Summary>
 //Summary ortho_range_query(const Nanocube<Summary> &nc,
