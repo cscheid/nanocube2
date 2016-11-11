@@ -18,6 +18,7 @@
 
 using json = nlohmann::json;
 
+
 static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
 
@@ -27,7 +28,7 @@ static Nanocube<int> nc(schema);
 static vector<pair<int64_t,int64_t> > dataarray;
 
 // convert lat,lon to quad tree address
-static int64_t loc2addr(double lat, double lon, int qtreeLevel)
+int64_t loc2addr(double lat, double lon, int qtreeLevel)
 {
   double xd = (lon + M_PI) / (2.0 * M_PI);
   double yd = (log(tan(M_PI / 4.0 + lat / 2.0)) + M_PI) / (2.0 * M_PI);
@@ -43,7 +44,7 @@ static int64_t loc2addr(double lat, double lon, int qtreeLevel)
   return z;
 }
 
-static void buildCubes()
+void buildCubes()
 {
   cout << "Start building Nanocubes..." << endl;
   using namespace boost::gregorian;
