@@ -4,60 +4,60 @@
   <meta charset="utf-8" />
   <title>Nanocubes Query Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <script src="./jquery-3.1.1.min.js"></script>
+  <script src="./jsoneditor.min.js"></script>
+
+  <script src="./webui.js"></script>
+
+  <link href="./jsoneditor.min.css" rel="stylesheet" type="text/css">
+
   <style type="text/css">
     * { outline: none; }
     body {
-      background-color: #789; margin: 0;
-      padding: 0; font: 16px/1.4 Helvetica, Arial, sans-serif;
-      font: 16px/1.4 Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      font: 14px/1.4 Helvetica, Arial, sans-serif;
     }
     div.content {
-      width: 800px; margin: 2em auto; padding: 20px 50px;
-      background-color: #fff; border-radius: 1em;
+      width: 900px;
+      margin: 2em auto;
+      padding: 20px 50px;
     }
-    label { display: inline-block; min-width: 7em; }
-    input { border: 1px solid #ccc; padding: 0.2em; }
-    a:link, a:visited { color: #69c; text-decoration: none; }
-    @media (max-width: 700px) {
-      body { background-color: #fff; }
-      div.content { width: auto; margin: 0 auto; padding: 1em; }
-    }
-  </style>
 
-  <script src="./jquery-3.1.1.min.js"></script>
-  <script src="./webui.js"></script>
+    #left {
+      float: left;
+    }
+
+    #jsoneditor {
+      width: 500px;
+      height: 500px;
+    }
+
+    #right {
+      margin-left: 510px;
+      padding: 1em;
+      overflow: hidden;
+    }
+
+  </style>
+  
 </head>
 
 <body>
+  <h1 align="center">Nanocubes Query Test</h1>
   <div class="content">
-    <h1>Nanocubes Query Test</h1>
-
-    <div>
-      <label>Operation:</label> <input type="text" id="op" />
-      <span>(find=0,split=1,range=2)</span>
-    </div>
-    <div>
-      <label>Address:</label> <input type="text" id="addr" />
-    </div>
-    <div>
-      <label>Depth:</label> <input type="text" id="depth" />
-    </div>
-    <div>
-      <label>Resolution:</label> <input type="text" id="resolution" />
-    </div>
-    <div>
-      <label>Lower Bound:</label> <input type="text" id="lbound" />
-    </div>
-    <div>
-      <label>Upper Bound:</label> <input type="text" id="ubound" />
-    </div>
-    <div>
+    <div id="left">
+      <div id="jsoneditor"></div>
+      <button type="button" id="btn_reset">Rest</button>
       <button type="button" id="btn_query">Query</button>
     </div>
-    <div>
-      <label>Result:</label> <span id="result">&nbsp;</span>
-    </div>
 
+    <div id="right">
+      <label><strong>Result:</strong></label>
+      <pre id="result"></pre>
+    </div>
   </div>
+
 </body>
 </html>

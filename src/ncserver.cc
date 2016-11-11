@@ -91,9 +91,7 @@ void buildCubes()
 static void handle_query_call(struct mg_connection *c, struct http_message *hm) {
 
   json q = json::parse(string(hm->body.p, hm->body.len));
-  cout << q.dump(2) << endl;
   json result = NCQuery(q, nc);
-  cout << result.dump(2) << endl;
 
   /* Send result */
   mg_printf(c, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
