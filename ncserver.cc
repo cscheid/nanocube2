@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
   c = mg_bind(&mgr, s_http_port, ev_handler);
   mg_set_protocol_http_websocket(c);
 
-  s_http_server_opts.document_root = "..";  // Serve parent directory
+  s_http_server_opts.document_root = "../webui";  // Serve a simple WebUI
   s_http_server_opts.enable_directory_listing = "yes";
 
   // build Gaussian Cubes

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Gaussian Cubes Query Test</title>
+  <title>Nanocubes Query Test</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style type="text/css">
     * { outline: none; }
@@ -22,48 +22,15 @@
       body { background-color: #fff; }
       div.content { width: auto; margin: 0 auto; padding: 1em; }
     }
-</style>
+  </style>
 
-<script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
-<script language="javascript" type="text/javascript">
-  jQuery(function() {
-
-    $('#btn_query').on('click', function() {
-      // clear result first
-      $('#result').html("");
-
-      // hard code a query for now
-      var query = {
-        '0': {
-          'operation': 'find',
-          'prefix': {'address':0, 'depth':0},
-          'resolution': 2,
-          'lowerBound': {},
-          'upperBound': {}
-        },
-        '1': {
-          'operation': 'all'
-        }
-      };
-
-      $.ajax({
-        url: '/query',
-        method: 'POST',
-        dataType: 'json',
-        data: JSON.stringify(query),
-        success: function(json) {
-            console.log(json.result);
-          $('#result').html(JSON.stringify(json.result));
-        }
-      });
-    });
-
-  });
-</script>
+  <script src="./jquery-3.1.1.min.js"></script>
+  <script src="./webui.js"></script>
 </head>
+
 <body>
   <div class="content">
-    <h1>Gaussian Cubes Query Test</h1>
+    <h1>Nanocubes Query Test</h1>
 
     <div>
       <label>Operation:</label> <input type="text" id="op" />
@@ -85,10 +52,10 @@
       <label>Upper Bound:</label> <input type="text" id="ubound" />
     </div>
     <div>
-        <button type="button" id="btn_query">Query</button>
+      <button type="button" id="btn_query">Query</button>
     </div>
     <div>
-     <label>Result:</label> <span id="result">&nbsp;</span>
+      <label>Result:</label> <span id="result">&nbsp;</span>
     </div>
 
   </div>
