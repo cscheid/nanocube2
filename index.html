@@ -31,19 +31,13 @@
     $('#btn_query').on('click', function() {
       // clear result first
       $('#result').html("");
-      var query = { op: $('#op').val(),
-            addr: $('#addr').val(), 
-            depth: $('#depth').val(),
-            resolution: $('#resolution').val(),
-            lbound: $('#lbound').val(),
-            ubound: $('#ubound').val()
-          };
+      var query = '{"0":{"operation":"find", "prefix": {"address":0, "depth":0}, "resolution":2, "lowerBound":{}, "upperBound":{}}, "1":{"operation":"all"}}';
 
       $.ajax({
         url: '/query',
         method: 'POST',
         dataType: 'json',
-        data: JSON.stringify(query),
+        data: query,
         success: function(json) {
             console.log(json.result);
           $('#result').html(JSON.stringify(json.result));

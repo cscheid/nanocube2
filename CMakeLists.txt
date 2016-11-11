@@ -8,7 +8,7 @@ if(Boost_FOUND)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(NANOCUBE_FILES ref_counted_vec.cc nanocube_traversals.cc debug.cc test_utils.cc)
+set(NANOCUBE_FILES ref_counted_vec.cc nanocube_traversals.cc debug.cc)
 set(MONGOOSE_FILES mongoose.c)
 
 # add_executable(main ${NANOCUBE_FILES} main.cc)

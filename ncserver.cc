@@ -15,9 +15,6 @@
 
 #include "nanocube.h"
 #include "nanocube_traversals.h"
-#include "nanocube_utils.h"
-#include "debug.h"
-//#include "test_utils.h"
 
 using json = nlohmann::json;
 
@@ -32,86 +29,74 @@ static vector<pair<int64_t,int64_t> > dataarray;
 // convert lat,lon to quad tree address
 static int64_t loc2addr(double lat, double lon, int qtreeLevel)
 {
-    double xd = (lon + M_PI) / (2.0 * M_PI);
-    double yd = (log(tan(M_PI / 4.0 + lat / 2.0)) + M_PI) / (2.0 * M_PI);
-    //cout << lat << " " << lon << " " << endl;
-    int x = xd * (1 << qtreeLevel), y = yd * (1 << qtreeLevel);
+  double xd = (lon + M_PI) / (2.0 * M_PI);
+  double yd = (log(tan(M_PI / 4.0 + lat / 2.0)) + M_PI) / (2.0 * M_PI);
+  //cout << lat << " " << lon << " " << endl;
+  int x = xd * (1 << qtreeLevel), y = yd * (1 << qtreeLevel);
 
-    int64_t z = 0; // z gets the resulting Morton Number.
+  int64_t z = 0; // z gets the resulting Morton Number.
 
-    for (int i = 0; i < sizeof(x) * 8; i++) // unroll for more speed...
-    {
-        z |= (x & 1U << i) << i | (y & 1U << i) << (i + 1);
-    }
+  for (int i = 0; i < sizeof(x) * 8; i++) {// unroll for more speed...
+    z |= (x & 1U << i) << i | (y & 1U << i) << (i + 1);
+  }
 
-    return z;
+  return z;
 }
 
 static void buildCubes()
 {
-    cout << "Start building Nanocubes..." << endl;
-    using namespace boost::gregorian;
-    using namespace boost::posix_time;
+  cout << "Start building Nanocubes..." << endl;
+  using namespace boost::gregorian;
+  using namespace boost::posix_time;
 
-    ifstream is("../sample_data/flights_100K.csv.txt");
-    string s;
+  ifstream is("../sample_data/flights_100K.csv.txt");
+  string s;
 
-    int i = 0;
+  int i = 0;
 
-    while (std::getline(is, s)) {
-        vector<string> output;
-        boost::split(output,s,boost::is_any_of("\t"));
-        if (output.size() != 4) {
-            cerr << "Bad line:" << s << endl;
-            continue;
-        }
-
-        double ori_lat = atof(output[0].c_str()) * M_PI / 180.0;
-        double ori_lon = atof(output[1].c_str()) * M_PI / 180.0;
-        double des_lat = atof(output[2].c_str()) * M_PI / 180.0;
-        double des_lon = atof(output[3].c_str()) * M_PI / 180.0;
-
-        if (ori_lat > 85.0511 || ori_lat < -85.0511 ||
-                des_lat > 85.0511 || des_lat < -85.0511 ){
-            cerr << "Invalid latitude: " << ori_lat << ", " << des_lat;
-            cerr << " (should be in [-85.0511, 85.0511])" << endl;
-            continue;
-        }
-
-        int64_t d1 = loc2addr(ori_lat, ori_lon, qtreeLevel);
-        int64_t d2 = loc2addr(des_lat, des_lon, qtreeLevel);
-
-        nc.insert(1, {d1, d2});
-        dataarray.push_back({d1,d2});
-
-        if (++i % 10000 == 0) {
-            //nc.report_size();
-            cout << i << endl;
-        }
+  while(std::getline(is, s)) {
+    vector<string> output;
+    boost::split(output,s,boost::is_any_of("\t"));
+    if (output.size() != 4) {
+      cerr << "Bad line:" << s << endl;
+      continue;
     }
+
+    double ori_lat = atof(output[0].c_str()) * M_PI / 180.0;
+    double ori_lon = atof(output[1].c_str()) * M_PI / 180.0;
+    double des_lat = atof(output[2].c_str()) * M_PI / 180.0;
+    double des_lon = atof(output[3].c_str()) * M_PI / 180.0;
+
+    if(ori_lat > 85.0511 || ori_lat < -85.0511 ||
+        des_lat > 85.0511 || des_lat < -85.0511 ) {
+      cerr << "Invalid latitude: " << ori_lat << ", " << des_lat;
+      cerr << " (should be in [-85.0511, 85.0511])" << endl;
+      continue;
+    }
+
+    int64_t d1 = loc2addr(ori_lat, ori_lon, qtreeLevel);
+    int64_t d2 = loc2addr(des_lat, des_lon, qtreeLevel);
+
+    nc.insert(1, {d1, d2});
+    dataarray.push_back({d1,d2});
+
+    if (++i % 10000 == 0) {
+      //nc.report_size();
+      cout << i << endl;
+    }
+  }
 }
 
 static void handle_sum_call(struct mg_connection *c, struct http_message *hm) {
 
-  auto q = json::parse(string(hm->body.p, hm->body.len));
-
-  int operation = jtod(q["op"]);
-  int64_t addr = jtod(q["addr"]);
-  int depth = jtod(q["depth"]);
-  int resolution = jtod(q["resolution"]);
-  int64_t lbound = jtod(q["lbound"]);
-  int64_t ubound = jtod(q["ubound"]);
-
-  std::string result;
-  switch(operation) {
-      case 0: result = QueryTestFind(nc, 0, addr, depth, true, dataarray, schema); break;
-      case 1: result = QueryTestSplit(nc, 0, addr, depth, resolution, true, dataarray, schema); break;
-      case 2: result = QueryTestRange(nc, 0, lbound, ubound, depth, true, dataarray, schema); break;
-  }
+  json q = json::parse(string(hm->body.p, hm->body.len));
+  cout << q.dump() << endl;
+  json result = NCQuery(q, nc);
+  cout << result.dump() << endl;
 
   /* Send result */
   mg_printf(c, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
-  mg_printf_http_chunk(c, "{ \"result\": %s }", result.c_str());
+  mg_printf_http_chunk(c, "%s", result.dump().c_str());
   mg_send_http_chunk(c, "", 0); /* Send empty chunk, the end of response */
 }
 
