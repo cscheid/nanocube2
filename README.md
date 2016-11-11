@@ -29,7 +29,7 @@ cd bin
 ./ncserver
 ```
 
-By default, a nanocube server will serve at on port `8000`.
+By default, a nanocube server will serve on port `8000`.
 
 A simple web ui will be served at: `http://localhost:8000/`
 
