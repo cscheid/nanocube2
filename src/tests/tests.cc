@@ -8,9 +8,9 @@
 #include <boost/generator_iterator.hpp>
 using namespace std;
 
-#include "nanocube.h"
-#include "nanocube_traversals.h"
-#include "debug.h"
+#include "../nanocube.h"
+#include "../nanocube_traversals.h"
+#include "../debug.h"
 
 using namespace std;
 

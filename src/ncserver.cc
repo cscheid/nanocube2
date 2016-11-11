@@ -88,7 +88,7 @@ void buildCubes()
   }
 }
 
-static void handle_sum_call(struct mg_connection *c, struct http_message *hm) {
+static void handle_query_call(struct mg_connection *c, struct http_message *hm) {
 
   json q = json::parse(string(hm->body.p, hm->body.len));
   cout << q.dump(2) << endl;
@@ -107,7 +107,7 @@ static void ev_handler(struct mg_connection *c, int ev, void *ev_data) {
   switch (ev) {
     case MG_EV_HTTP_REQUEST:
       if (mg_vcmp(&hm->uri, "/query") == 0) {
-        handle_sum_call(c, hm); /* Handle RESTful call */
+        handle_query_call(c, hm); /* Handle RESTful call */
       } 
       else {
         mg_serve_http(c, hm, s_http_server_opts); /* Serve static content */

@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 2.6)
-project (main)
+project (nanocubes)
 
 find_package(Boost 1.36.0 COMPONENTS date_time)
 
@@ -8,18 +8,23 @@ if(Boost_FOUND)
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(NANOCUBE_FILES ref_counted_vec.cc nanocube_traversals.cc debug.cc)
-set(MONGOOSE_FILES mongoose.c)
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
+set(NANOCUBE_FILES
+  ./src/nanocube_traversals.cc
+  ./src/ref_counted_vec.cc
+  ./src/debug.cc
+  ./src/mongoose.c
+)
 
-# add_executable(main ${NANOCUBE_FILES} main.cc)
-# add_executable(nanocube_tests ${NANOCUBE_FILES} tests.cc)
-#add_executable(test_brightkite ${NANOCUBE_FILES} test_brightkite.cc)
-#add_executable(test_flights ${NANOCUBE_FILES} test_flights.cc)
-add_executable(ncserver ${MONGOOSE_FILES} ${NANOCUBE_FILES} ncserver.cc)
+#add_executable(main ${NANOCUBE_FILES} ./src/tests/main.cc)
+#add_executable(nanocube_tests ${NANOCUBE_FILES} ./src/tests/tests.cc)
+#add_executable(test_brightkite ${NANOCUBE_FILES} ./src/tests/test_brightkite.cc)
+#add_executable(test_flights ${NANOCUBE_FILES} ./src/tests/test_flights.cc)
+add_executable(ncserver ${NANOCUBE_FILES} ./src/ncserver.cc)
 
+#target_link_libraries(nanocube_tests ${Boost_LIBRARIES})
 #target_link_libraries(test_brightkite ${Boost_LIBRARIES})
 #target_link_libraries(test_flights ${Boost_LIBRARIES})
 target_link_libraries(ncserver ${Boost_LIBRARIES})
-
 
 set(CMAKE_BUILD_TYPE Release)
