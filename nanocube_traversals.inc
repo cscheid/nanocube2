@@ -197,23 +197,8 @@ json NCQuery(json &q,
     case 3: nodes.push_back(QueryNode(index, 0, dim, 0));
             break;
   }
-  //query_range(q, nc.dims.at(dim), index,
-  //range.at(dim).first, range.at(dim).second, nc.dims.at(dim).width,
-  //result,
-  //insert_partial_overlap);
-
-  Summary summary = Summary();
-  //if (dim == nc.dims.size() - 1) {
-  //for (size_t i=0; i<result.size(); ++i)
-  //summary += nc.summaries.at(nc.dims.at(dim).at(result[i].first).next);
-  //} else {
-  //for (size_t i=0; i<result.size(); ++i)
-  //summary += ortho_range_query(nc, range, insert_partial_overlap, dim+1,
-  //nc.dims.at(dim).at(result[i].first).next);
-  //}
 
   json result;
-  /*
   if(dim == nc.dims.size() - 1) {
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
@@ -236,17 +221,17 @@ json NCQuery(json &q,
     
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
-        result[i] = Query();
+        result[i] = NCQuery(q, nc, insert_partial_overlap, dim+1,
+                          nc.dims.at(dim).at(nodes[i].index).next);
       }
 
     } else { // find || range || all
       for(int i = 0; i < nodes.size(); i ++) {
-        result.push_back(Query(q, nc, insert_partial_overlap, dim+1,
+        result.push_back(NCQuery(q, nc, insert_partial_overlap, dim+1,
                          nc.dims.at(dim).at(nodes[i].index).next));
       }
     }
 
   }
-  */
   return result;
 }

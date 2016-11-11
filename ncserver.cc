@@ -90,13 +90,13 @@ static void buildCubes()
 static void handle_sum_call(struct mg_connection *c, struct http_message *hm) {
 
   json q = json::parse(string(hm->body.p, hm->body.len));
-  cout << q.dump() << endl;
+  cout << q.dump(2) << endl;
   json result = NCQuery(q, nc);
-  cout << result.dump() << endl;
+  cout << result.dump(2) << endl;
 
   /* Send result */
   mg_printf(c, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
-  mg_printf_http_chunk(c, "%s", result.dump().c_str());
+  mg_printf_http_chunk(c, "{\"result\": %s}", result.dump().c_str());
   mg_send_http_chunk(c, "", 0); /* Send empty chunk, the end of response */
 }
 
