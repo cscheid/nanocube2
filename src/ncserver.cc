@@ -91,6 +91,7 @@ void buildCubes()
 static void handle_query_call(struct mg_connection *c, struct http_message *hm) {
 
   json q = json::parse(string(hm->body.p, hm->body.len));
+  // TODO sanity check of query
   json result = NCQuery(q, nc);
 
   /* Send result */

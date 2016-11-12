@@ -203,11 +203,12 @@ json NCQuery(json &q,
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
         Summary s = (nc.summaries.at(nc.dims.at(dim).at(nodes[i].index).next));
-        int64_t prefix_address = nodes[i].address;
-        int prefix_depth = nodes[i].depth;
-        result[i] = {{"address", prefix_addr},
-                              {"depth", prefix_depth},
-                              {"value", s}};
+        result[to_string(i)] = {
+          {"address", nodes[i].address},
+          {"depth", nodes[i].depth},
+          {"dimension", nodes[i].dim},
+          {"value", s}
+        };
       }
 
     } else { // find || range || all
@@ -221,8 +222,13 @@ json NCQuery(json &q,
     
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
-        result[i] = NCQuery(q, nc, insert_partial_overlap, dim+1,
-                          nc.dims.at(dim).at(nodes[i].index).next);
+        result[to_string(i)] = {
+          {"address", nodes[i].address},
+          {"depth", nodes[i].depth},
+          {"dimension", nodes[i].dim},
+          {"value", NCQuery(q, nc, insert_partial_overlap, dim+1,
+                            nc.dims.at(dim).at(nodes[i].index).next)},
+        };
       }
 
     } else { // find || range || all
@@ -230,6 +236,7 @@ json NCQuery(json &q,
         result.push_back(NCQuery(q, nc, insert_partial_overlap, dim+1,
                          nc.dims.at(dim).at(nodes[i].index).next));
       }
+      // TODO combine the results together like: summary += value
     }
 
   }
