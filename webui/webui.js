@@ -43,6 +43,7 @@ $(document).ready(function(){
   // rest button
   $('#btn_reset').on('click', function () {
     jsoneditor.set(default_json);
+    $('#result').text("");
   });
 
 });
