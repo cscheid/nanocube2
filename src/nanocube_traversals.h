@@ -28,14 +28,104 @@ struct QueryNode {
 };
 
 std::ostream& operator<<(std::ostream& os, const QueryNode &n);
+
+// use as the key when merging query result
+struct ResultKey {
+  ResultKey() {};
+  ResultKey(int64_t a, int de, int di):
+    address(a), depth(de), dimension(di) {};
+  int64_t address;
+  int depth, dimension;
+
+  friend bool operator <(const ResultKey &r1, const ResultKey &r2) {
+    if (r1.dimension < r2.dimension) {
+      return true;
+    } else if (r1.depth < r2.depth) {
+      return true;
+    } else if (r1.address < r2.address) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+
 ///////////////////////////////////////////////////////////////////////////////
 // Utility Functions
 ///////////////////////////////////////////////////////////////////////////////
-inline double jtod(json j){
-  std::string t = j;
-  return strtod(t.c_str(), NULL);
-}
 
+// merge the raw result when possible
+// for 'find' and 'range', the raw result could be an array
+// TODO needs more testing
+template <typename Summary>
+json merge_query_result(json raw) {
+
+  if(raw.is_array()) {
+
+    if(raw[0].is_object()) {
+      map<ResultKey, json> resultMap;
+      for(auto it = raw.begin(); it != raw.end(); ++ it) {
+        if ((*it).find("0") != (*it).end()) {
+          for(int i = 0; i < it->size(); ++i) {
+            json temp = (*it)[to_string(i)];
+            ResultKey k = ResultKey(temp["address"], 
+                                    temp["depth"], 
+                                    temp["dimension"]);
+            auto f = resultMap.find(k);
+            if(f == resultMap.end()) {
+              resultMap[k] = temp["value"];
+            } else {
+              resultMap[k] = 
+                merge_query_result<Summary>({resultMap[k], temp["value"]});
+            }
+          }
+        } else {
+          // TODO maybe this case don't exist
+          cout << "this merge exitst!!" << endl;
+          ResultKey k = ResultKey((*it)["address"], 
+                                  (*it)["depth"], 
+                                  (*it)["dimension"]);
+          auto f = resultMap.find(k);
+          if(f == resultMap.end()) {
+            resultMap[k] = (*it)["value"];
+          } else {
+            resultMap[k] = 
+              merge_query_result<Summary>({resultMap[k], (*it)["value"]});
+          }
+        }
+      }
+
+      json merge;
+      int count = 0;
+      for(auto it = resultMap.begin(); it != resultMap.end(); ++it) {
+        merge[to_string(count)] = { {"address", it->first.address}, 
+                                    {"depth", it->first.depth}, 
+                                    {"dimension", it->first.dimension}, 
+                                    {"value", it->second}};
+        count ++;
+      }
+      return merge;
+
+    } else {
+      Summary sum = Summary();
+      for(int i = 0; i < raw.size(); i ++) {
+        Summary t = raw[i];
+        sum += t;
+      }
+      return sum;
+    }
+
+  } else if(raw.is_object()) {
+    for(int i = 0; i < raw.size(); ++i) {
+      raw[to_string(i)]["value"] = 
+        merge_query_result<Summary>(raw[to_string(i)]["value"]);
+    }
+    return raw;
+  } else {
+    return raw;
+  }
+
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Private Functions

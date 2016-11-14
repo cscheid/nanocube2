@@ -199,7 +199,7 @@ json NCQuery(json &q,
   }
 
   json result;
-  if(dim == nc.dims.size() - 1) {
+  if(dim == nc.dims.size() - 1) { // get summary
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
         Summary s = (nc.summaries.at(nc.dims.at(dim).at(nodes[i].index).next));
@@ -218,8 +218,8 @@ json NCQuery(json &q,
       }
       result = summary;
     }
+
   } else { // get nodes for the next dimension
-    
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
         result[to_string(i)] = {
@@ -236,9 +236,9 @@ json NCQuery(json &q,
         result.push_back(NCQuery(q, nc, insert_partial_overlap, dim+1,
                          nc.dims.at(dim).at(nodes[i].index).next));
       }
-      // TODO combine the results together like: summary += value
     }
 
   }
-  return result;
+
+  return merge_query_result<Summary>(result);
 }
