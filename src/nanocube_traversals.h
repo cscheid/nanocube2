@@ -132,7 +132,8 @@ json merge_query_result(json raw) {
 ///////////////////////////////////////////////////////////////////////////////
 template <typename T> 
 void query_range(const Nanocube<T> &nc, int dim_index, int starting_node,
-                 int64_t lower_bound, int64_t upper_bound, int depth,
+                 int64_t lower_bound, int64_t upper_bound, 
+                 int lo_depth, int up_depth,
                  std::vector<QueryNode> &nodes,
                  bool insert_partial_overlap = false);
 

@@ -42,22 +42,24 @@ struct BoundedIndex {
 
 template <typename T> 
 void query_range(const Nanocube<T> &nc, int dim_index, int starting_node,
-                 int64_t lo, int64_t up, int depth, vector<QueryNode> &nodes, 
-                 bool insert_partial_overlap)
+                 int64_t lo, int64_t up, int lo_depth, int up_depth,
+                 vector<QueryNode> &nodes, bool insert_partial_overlap)
 {
   const NCDim dim = nc.dims.at(dim_index);
   stack<BoundedIndex> node_indices;
-  node_indices.push(BoundedIndex(0, (int64_t)1 << depth, 0, starting_node, 0));
+  node_indices.push(BoundedIndex(0, (int64_t)1 << dim.width, 0, starting_node, 0));
 
   while (node_indices.size()) {
     BoundedIndex t = node_indices.top();
     const NCDimNode &node = dim.at(t.index);
     node_indices.pop();
-    if (t.left >= lo && t.right <= up) {
+    if ( (t.left >> (dim.width-lo_depth)) >= lo && 
+         (t.right >> (dim.width-up_depth)) <= up) {
       nodes.push_back(QueryNode(t.index, t.depth, dim_index, t.address));
-    } else if (up <= t.left || t.right <= lo) {
+    } else if (up < (t.left >> (dim.width-up_depth)) ||
+               (t.right >> (dim.width-lo_depth)) < lo) {
       continue;
-    } else if (t.depth == depth) {
+    } else if (t.depth == dim.width) {
       if (insert_partial_overlap) {
         nodes.push_back(QueryNode(t.index, t.depth, dim_index, t.address));
       }
@@ -179,7 +181,7 @@ json NCQuery(json &q,
               upperBound_depth = clause["upperBound"]["depth"];
               break;
       case 3: break;
-      default: return Summary(); // TODO return "null"?
+      default: return Summary();
     }
   }
 
@@ -190,12 +192,14 @@ json NCQuery(json &q,
     case 1: query_split(nc, dim, index, prefix_addr, prefix_depth, resolution, 
                         nodes);
             break;
-    case 2: // TODO currently assume lowerBound_depth == upperBound_depth
-            query_range(nc, dim, index, lowerBound_addr, upperBound_addr,
-                        lowerBound_depth, nodes);
+    case 2: query_range(nc, dim, index, lowerBound_addr, upperBound_addr,
+                        lowerBound_depth, upperBound_depth, nodes);
             break;
     case 3: nodes.push_back(QueryNode(index, 0, dim, 0));
             break;
+  }
+  if (nodes.size() == 0) {
+    return Summary();
   }
 
   json result;
