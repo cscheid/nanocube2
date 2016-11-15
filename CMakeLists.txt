@@ -16,11 +16,16 @@ set(NANOCUBE_FILES
   ./src/mongoose.c
 )
 
+set(NAIVECUBE_FILES
+  ./src/naivecube.h
+  ./src/naivecube.inc
+)
+
 #add_executable(main ${NANOCUBE_FILES} ./src/tests/main.cc)
 #add_executable(nanocube_tests ${NANOCUBE_FILES} ./src/tests/tests.cc)
 #add_executable(test_brightkite ${NANOCUBE_FILES} ./src/tests/test_brightkite.cc)
 #add_executable(test_flights ${NANOCUBE_FILES} ./src/tests/test_flights.cc)
-add_executable(ncserver ${NANOCUBE_FILES} ./src/ncserver.cc)
+add_executable(ncserver ${NANOCUBE_FILES} ${NAIVECUBE_FILES} ./src/ncserver.cc)
 
 #target_link_libraries(nanocube_tests ${Boost_LIBRARIES})
 #target_link_libraries(test_brightkite ${Boost_LIBRARIES})
