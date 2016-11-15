@@ -65,7 +65,7 @@ json merge_query_result(json raw) {
     if(raw[0].is_object()) {
       map<ResultKey, json> resultMap;
       for(auto it = raw.begin(); it != raw.end(); ++ it) {
-        if ((*it).find("0") != (*it).end()) {
+        if ((*it).find("s0") != (*it).end()) {
           for(int i = 0; i < it->size(); ++i) {
             json temp = (*it)["s"+to_string(i)];
             ResultKey k = ResultKey(temp["address"], 
@@ -82,6 +82,7 @@ json merge_query_result(json raw) {
         } else {
           // TODO maybe this case don't exist
           cout << "this merge exitst!!" << endl;
+          cout << it->dump() << endl;
           ResultKey k = ResultKey((*it)["address"], 
                                   (*it)["depth"], 
                                   (*it)["dimension"]);
