@@ -207,7 +207,7 @@ json NCQuery(json &q,
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
         Summary s = (nc.summaries.at(nc.dims.at(dim).at(nodes[i].index).next));
-        result[to_string(i)] = {
+        result["s"+to_string(i)] = {
           {"address", nodes[i].address},
           {"depth", nodes[i].depth},
           {"dimension", nodes[i].dim},
@@ -226,7 +226,7 @@ json NCQuery(json &q,
   } else { // get nodes for the next dimension
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
-        result[to_string(i)] = {
+        result["s"+to_string(i)] = {
           {"address", nodes[i].address},
           {"depth", nodes[i].depth},
           {"dimension", nodes[i].dim},

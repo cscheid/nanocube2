@@ -67,7 +67,7 @@ json merge_query_result(json raw) {
       for(auto it = raw.begin(); it != raw.end(); ++ it) {
         if ((*it).find("0") != (*it).end()) {
           for(int i = 0; i < it->size(); ++i) {
-            json temp = (*it)[to_string(i)];
+            json temp = (*it)["s"+to_string(i)];
             ResultKey k = ResultKey(temp["address"], 
                                     temp["depth"], 
                                     temp["dimension"]);
@@ -98,10 +98,10 @@ json merge_query_result(json raw) {
       json merge;
       int count = 0;
       for(auto it = resultMap.begin(); it != resultMap.end(); ++it) {
-        merge[to_string(count)] = { {"address", it->first.address}, 
-                                    {"depth", it->first.depth}, 
-                                    {"dimension", it->first.dimension}, 
-                                    {"value", it->second}};
+        merge["s"+to_string(count)] = { {"address", it->first.address}, 
+                                        {"depth", it->first.depth}, 
+                                        {"dimension", it->first.dimension}, 
+                                        {"value", it->second}};
         count ++;
       }
       return merge;
@@ -117,8 +117,8 @@ json merge_query_result(json raw) {
 
   } else if(raw.is_object()) {
     for(int i = 0; i < raw.size(); ++i) {
-      raw[to_string(i)]["value"] = 
-        merge_query_result<Summary>(raw[to_string(i)]["value"]);
+      raw["s"+to_string(i)]["value"] = 
+        merge_query_result<Summary>(raw["s"+to_string(i)]["value"]);
     }
     return raw;
   } else {
