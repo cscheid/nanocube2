@@ -16,7 +16,7 @@ struct Naivecube {
 
   void insert(const Summary &value, const vector<int64_t> &address);
 
-  Naivecube(const vector<int> &schema);
+  explicit Naivecube(const vector<int> &schema);
 };
 
 

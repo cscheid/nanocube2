@@ -107,6 +107,6 @@ template <typename Summary>
 Naivecube<Summary>::Naivecube(const vector<int> &schema) {
   indexDims = schema.size();
   for(int i = 0; i < indexDims; i ++) {
-    dimWidth.push_back(i);
+    dimWidth.push_back(schema[i]);
   }
 }
