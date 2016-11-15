@@ -5,8 +5,19 @@ void Naivecube<Summary>::insert(const Summary &value, const vector<int64_t> &add
 }
 
 template <typename Summary>
+Naivecube<Summary>::Naivecube(const vector<int> &schema) {
+  indexDims = schema.size();
+  for(int i = 0; i < indexDims; i ++) {
+    dimWidth.push_back(schema[i]);
+  }
+}
+
+template <typename Summary>
 json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
 {
+  //////////////////////////////////////////////////////////////////////////////
+  // parse the query json object
+  //////////////////////////////////////////////////////////////////////////////
   int op; // 0 for find, 1 for split, 2 for range, 3 for all
   int64_t prefix_addr;
   int prefix_depth;
@@ -74,8 +85,11 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
     }
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  // run the query
+  //////////////////////////////////////////////////////////////////////////////
   if (!hasSplit) {
-    // now split operation, thre result should just be a <Summary> value
+    // no split operation, the result should just be a <Summary> value
     // we just need to scan and sum all valid rows
     Summary sum = Summary();
     for( auto it = nc.data.begin(); it != nc.data.end(); ++it) {
@@ -100,13 +114,3 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
     // TODO extra work for split
     return Summary();
   }
-
-}
-
-template <typename Summary>
-Naivecube<Summary>::Naivecube(const vector<int> &schema) {
-  indexDims = schema.size();
-  for(int i = 0; i < indexDims; i ++) {
-    dimWidth.push_back(schema[i]);
-  }
-}
