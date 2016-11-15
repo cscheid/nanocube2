@@ -1,33 +1,5 @@
 // Copyright 2016 Arizona Board of Regents. See README.md and LICENSE for more.
 
-//template <typename Summary>
-//Summary ortho_range_query(const Nanocube<Summary> &nc,
-                          //const vector<pair<int64_t, int64_t> > &range,
-                          //bool insert_partial_overlap,
-                          //int dim, int index)
-//{
-  //if (dim == 0) {
-    //index = nc.base_root;
-  //}
-
-  //std::vector<std::pair<int, int> > result;
-  //query_range(nc.dims.at(dim), index,
-                //range.at(dim).first, range.at(dim).second, nc.dims.at(dim).width,
-                //result,
-                //insert_partial_overlap);
-
-  //Summary summary = Summary();
-  //if (dim == nc.dims.size() - 1) {
-    //for (size_t i=0; i<result.size(); ++i)
-      //summary += nc.summaries.at(nc.dims.at(dim).at(result[i].first).next);
-  //} else {
-    //for (size_t i=0; i<result.size(); ++i)
-      //summary += ortho_range_query(nc, range, insert_partial_overlap, dim+1,
-                                   //nc.dims.at(dim).at(result[i].first).next);
-  //}
-  //return summary;
-//}
-
 struct BoundedIndex {
   BoundedIndex(int64_t l, int64_t r, int64_t a, int i, int d): 
                left(l), right(r), address(a), index(i), depth(d) {}
@@ -245,4 +217,75 @@ json NCQuery(json &q,
   }
 
   return merge_query_result<Summary>(result);
+}
+
+template <typename Summary>
+json merge_query_result(json raw) {
+
+  if(raw.is_array()) {
+
+    if(raw[0].is_object()) {
+      map<ResultKey, json> resultMap;
+      for(auto it = raw.begin(); it != raw.end(); ++ it) {
+        if ((*it).find("s0") != (*it).end()) {
+          for(int i = 0; i < it->size(); ++i) {
+            json temp = (*it)["s"+to_string(i)];
+            ResultKey k = ResultKey(temp["address"], 
+                                    temp["depth"], 
+                                    temp["dimension"]);
+            auto f = resultMap.find(k);
+            if(f == resultMap.end()) {
+              resultMap[k] = temp["value"];
+            } else {
+              resultMap[k] = 
+                merge_query_result<Summary>({resultMap[k], temp["value"]});
+            }
+          }
+        } else {
+          // TODO maybe this case don't exist
+          cout << "this merge exitst!!" << endl;
+          cout << it->dump() << endl;
+          ResultKey k = ResultKey((*it)["address"], 
+                                  (*it)["depth"], 
+                                  (*it)["dimension"]);
+          auto f = resultMap.find(k);
+          if(f == resultMap.end()) {
+            resultMap[k] = (*it)["value"];
+          } else {
+            resultMap[k] = 
+              merge_query_result<Summary>({resultMap[k], (*it)["value"]});
+          }
+        }
+      }
+
+      json merge;
+      int count = 0;
+      for(auto it = resultMap.begin(); it != resultMap.end(); ++it) {
+        merge["s"+to_string(count)] = { {"address", it->first.address}, 
+                                        {"depth", it->first.depth}, 
+                                        {"dimension", it->first.dimension}, 
+                                        {"value", it->second}};
+        count ++;
+      }
+      return merge;
+
+    } else {
+      Summary sum = Summary();
+      for(int i = 0; i < raw.size(); i ++) {
+        Summary t = raw[i];
+        sum += t;
+      }
+      return sum;
+    }
+
+  } else if(raw.is_object()) {
+    for(int i = 0; i < raw.size(); ++i) {
+      raw["s"+to_string(i)]["value"] = 
+        merge_query_result<Summary>(raw["s"+to_string(i)]["value"]);
+    }
+    return raw;
+  } else {
+    return raw;
+  }
+
 }

@@ -58,75 +58,7 @@ struct ResultKey {
 // for 'find' and 'range', the raw result could be an array
 // TODO needs more testing
 template <typename Summary>
-json merge_query_result(json raw) {
-
-  if(raw.is_array()) {
-
-    if(raw[0].is_object()) {
-      map<ResultKey, json> resultMap;
-      for(auto it = raw.begin(); it != raw.end(); ++ it) {
-        if ((*it).find("s0") != (*it).end()) {
-          for(int i = 0; i < it->size(); ++i) {
-            json temp = (*it)["s"+to_string(i)];
-            ResultKey k = ResultKey(temp["address"], 
-                                    temp["depth"], 
-                                    temp["dimension"]);
-            auto f = resultMap.find(k);
-            if(f == resultMap.end()) {
-              resultMap[k] = temp["value"];
-            } else {
-              resultMap[k] = 
-                merge_query_result<Summary>({resultMap[k], temp["value"]});
-            }
-          }
-        } else {
-          // TODO maybe this case don't exist
-          cout << "this merge exitst!!" << endl;
-          cout << it->dump() << endl;
-          ResultKey k = ResultKey((*it)["address"], 
-                                  (*it)["depth"], 
-                                  (*it)["dimension"]);
-          auto f = resultMap.find(k);
-          if(f == resultMap.end()) {
-            resultMap[k] = (*it)["value"];
-          } else {
-            resultMap[k] = 
-              merge_query_result<Summary>({resultMap[k], (*it)["value"]});
-          }
-        }
-      }
-
-      json merge;
-      int count = 0;
-      for(auto it = resultMap.begin(); it != resultMap.end(); ++it) {
-        merge["s"+to_string(count)] = { {"address", it->first.address}, 
-                                        {"depth", it->first.depth}, 
-                                        {"dimension", it->first.dimension}, 
-                                        {"value", it->second}};
-        count ++;
-      }
-      return merge;
-
-    } else {
-      Summary sum = Summary();
-      for(int i = 0; i < raw.size(); i ++) {
-        Summary t = raw[i];
-        sum += t;
-      }
-      return sum;
-    }
-
-  } else if(raw.is_object()) {
-    for(int i = 0; i < raw.size(); ++i) {
-      raw["s"+to_string(i)]["value"] = 
-        merge_query_result<Summary>(raw["s"+to_string(i)]["value"]);
-    }
-    return raw;
-  } else {
-    return raw;
-  }
-
-}
+json merge_query_result(json raw);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Private Functions
@@ -148,28 +80,6 @@ void query_split(const Nanocube<T> &nc, int dim_index, int starting_node,
                  std::vector<QueryNode> &nodes);
 
 ///////////////////////////////////////////////////////////////////////////////
-// Test Functions
-///////////////////////////////////////////////////////////////////////////////
-
-//string QueryTestFind(Nanocube<int> &nc, int dim, int64_t address, int depth,
-                //bool validate, 
-                //vector<pair<int64_t,int64_t> > &dataarray,
-                //vector<int> &schema);
-
-//string QueryTestSplit(Nanocube<int> &nc, int dim, int64_t prefix, int depth,
-                   //int resolution,
-                   //bool validate, 
-                   //vector<pair<int64_t,int64_t> > &dataarray,
-                   //vector<int> &schema);
-
-//string QueryTestRange(Nanocube<int> &nc, int dim, int64_t lo, int64_t up,
-                      //int depth,
-                      //bool validate, 
-                      //vector<pair<int64_t,int64_t> > &dataarray,
-                      //vector<int> &schema);
-
-
-///////////////////////////////////////////////////////////////////////////////
 // APIs
 ///////////////////////////////////////////////////////////////////////////////
 template <typename Summary>
@@ -178,12 +88,5 @@ json NCQuery(json &q,
              bool insert_partial_overlap = false,
              int dim = 0,
              int index = -1);
-
-//template <typename Summary>
-//Summary ortho_range_query(const Nanocube<Summary> &nc,
-                          //const vector<pair<int64_t, int64_t> > &range,
-                          //bool insert_partial_overlap = false,
-                          //int dim = 0,
-                          //int index = -1);
 
 #include "nanocube_traversals.inc"
