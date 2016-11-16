@@ -115,10 +115,10 @@ json NCQuery(json &q,
              int dim, 
              int index)
 {
-  if (dim == 0) {
-    index = nc.base_root;
-  }
 
+  //////////////////////////////////////////////////////////////////////////////
+  // parse json for current operation and corresponding parameters
+  //////////////////////////////////////////////////////////////////////////////
   int op; // 0 for find, 1 for split, 2 for range, 3 for all
   int64_t prefix_addr;
   int prefix_depth;
@@ -157,7 +157,15 @@ json NCQuery(json &q,
     }
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  // Find all valid nodes
+  //////////////////////////////////////////////////////////////////////////////
   std::vector<QueryNode> nodes;
+
+  if (dim == 0) {
+    index = nc.base_root;
+  }
+
   switch(op) {
     case 0: query_find(nc, dim, index, prefix_addr, prefix_depth, nodes);
             break;
@@ -174,6 +182,9 @@ json NCQuery(json &q,
     return Summary();
   }
 
+  //////////////////////////////////////////////////////////////////////////////
+  // assemble summary results from nodes
+  //////////////////////////////////////////////////////////////////////////////
   json result;
   if(dim == nc.dims.size() - 1) { // get summary
     if(op == 1) { // split
@@ -207,45 +218,43 @@ json NCQuery(json &q,
 
   }
 
-  return merge_query_result<Summary>(result);
+  if(result.is_array()) {
+    return merge_query_result<Summary>(result);
+  } else {
+    return result;
+  }
 }
 
 template <typename Summary>
-json merge_query_result(const json &raw) {
-
-  if(raw.is_array()) {
-
-    if(raw[0].is_object()) {
-      map<string, json> resultMap;
-      for(auto it = raw.begin(); it != raw.end(); ++ it) {
-        for(auto it2 = it->begin(); it2 != it->end(); ++ it2) {
-          string k = it2.key();
-          auto f = resultMap.find(k);
-          if(f == resultMap.end()) {
-            resultMap[k] = it2.value();
-          } else {
-            resultMap[k] = 
-              merge_query_result<Summary>({resultMap[k], it2.value()});
-          }
+json merge_query_result(const json &raw)
+{
+  if(raw[0].is_object()) {
+    map<string, json> resultMap;
+    for(auto it = raw.begin(); it != raw.end(); ++ it) {
+      for(auto it2 = it->begin(); it2 != it->end(); ++ it2) {
+        string k = it2.key();
+        auto f = resultMap.find(k);
+        if(f == resultMap.end()) {
+          resultMap[k] = it2.value();
+        } else {
+          resultMap[k] = 
+            merge_query_result<Summary>({resultMap[k], it2.value()});
         }
       }
-
-      json merge;
-      for(auto it = resultMap.begin(); it != resultMap.end(); ++it) {
-        merge[it->first] = it->second;
-      }
-      return merge;
-
-    } else {
-      Summary sum = Summary();
-      for(int i = 0; i < raw.size(); i ++) {
-        Summary t = raw[i];
-        sum += t;
-      }
-      return sum;
     }
 
+    json merge;
+    for(auto it = resultMap.begin(); it != resultMap.end(); ++it) {
+      merge[it->first] = it->second;
+    }
+    return merge;
+
   } else {
-    return raw;
+    Summary sum = Summary();
+    for(int i = 0; i < raw.size(); i ++) {
+      Summary t = raw[i];
+      sum += t;
+    }
+    return sum;
   }
 }
