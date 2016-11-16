@@ -114,3 +114,4 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
     // TODO extra work for split
     return Summary();
   }
+}
