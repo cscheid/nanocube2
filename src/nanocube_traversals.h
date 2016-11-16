@@ -58,7 +58,7 @@ struct ResultKey {
 // for 'find' and 'range', the raw result could be an array
 // TODO needs more testing
 template <typename Summary>
-json merge_query_result(json raw);
+json merge_query_result(const json &raw);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Private Functions

@@ -179,12 +179,7 @@ json NCQuery(json &q,
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
         Summary s = (nc.summaries.at(nc.dims.at(dim).at(nodes[i].index).next));
-        result["s"+to_string(i)] = {
-          {"address", nodes[i].address},
-          {"depth", nodes[i].depth},
-          {"dimension", nodes[i].dim},
-          {"value", s}
-        };
+        result[to_string(nodes[i].address)] = s;
       }
 
     } else { // find || range || all
@@ -198,13 +193,9 @@ json NCQuery(json &q,
   } else { // get nodes for the next dimension
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
-        result["s"+to_string(i)] = {
-          {"address", nodes[i].address},
-          {"depth", nodes[i].depth},
-          {"dimension", nodes[i].dim},
-          {"value", NCQuery(q, nc, insert_partial_overlap, dim+1,
-                            nc.dims.at(dim).at(nodes[i].index).next)},
-        };
+        result[to_string(nodes[i].address)] = 
+          NCQuery(q, nc, insert_partial_overlap, dim+1,
+                  nc.dims.at(dim).at(nodes[i].index).next);
       }
 
     } else { // find || range || all
@@ -220,52 +211,28 @@ json NCQuery(json &q,
 }
 
 template <typename Summary>
-json merge_query_result(json raw) {
+json merge_query_result(const json &raw) {
 
   if(raw.is_array()) {
 
     if(raw[0].is_object()) {
-      map<ResultKey, json> resultMap;
+      map<string, json> resultMap;
       for(auto it = raw.begin(); it != raw.end(); ++ it) {
-        if ((*it).find("s0") != (*it).end()) {
-          for(int i = 0; i < it->size(); ++i) {
-            json temp = (*it)["s"+to_string(i)];
-            ResultKey k = ResultKey(temp["address"], 
-                                    temp["depth"], 
-                                    temp["dimension"]);
-            auto f = resultMap.find(k);
-            if(f == resultMap.end()) {
-              resultMap[k] = temp["value"];
-            } else {
-              resultMap[k] = 
-                merge_query_result<Summary>({resultMap[k], temp["value"]});
-            }
-          }
-        } else {
-          // TODO maybe this case don't exist
-          cout << "this merge exitst!!" << endl;
-          cout << it->dump() << endl;
-          ResultKey k = ResultKey((*it)["address"], 
-                                  (*it)["depth"], 
-                                  (*it)["dimension"]);
+        for(auto it2 = it->begin(); it2 != it->end(); ++ it2) {
+          string k = it2.key();
           auto f = resultMap.find(k);
           if(f == resultMap.end()) {
-            resultMap[k] = (*it)["value"];
+            resultMap[k] = it2.value();
           } else {
             resultMap[k] = 
-              merge_query_result<Summary>({resultMap[k], (*it)["value"]});
+              merge_query_result<Summary>({resultMap[k], it2.value()});
           }
         }
       }
 
       json merge;
-      int count = 0;
       for(auto it = resultMap.begin(); it != resultMap.end(); ++it) {
-        merge["s"+to_string(count)] = { {"address", it->first.address}, 
-                                        {"depth", it->first.depth}, 
-                                        {"dimension", it->first.dimension}, 
-                                        {"value", it->second}};
-        count ++;
+        merge[it->first] = it->second;
       }
       return merge;
 
@@ -278,14 +245,7 @@ json merge_query_result(json raw) {
       return sum;
     }
 
-  } else if(raw.is_object()) {
-    for(int i = 0; i < raw.size(); ++i) {
-      raw["s"+to_string(i)]["value"] = 
-        merge_query_result<Summary>(raw["s"+to_string(i)]["value"]);
-    }
-    return raw;
   } else {
     return raw;
   }
-
 }
