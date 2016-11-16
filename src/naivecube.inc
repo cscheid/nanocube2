@@ -1,5 +1,7 @@
 #include <boost/algorithm/string.hpp>
 
+#include "nanocube_traversals.h"
+
 
 template <typename Summary>
 void Naivecube<Summary>::insert(const Summary &value, const vector<int64_t> &address)
@@ -16,8 +18,11 @@ Naivecube<Summary>::Naivecube(const vector<int> &schema) {
 }
 
 template <typename Summary>
-json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
+json NaiveCubeQuery(const json &q, const Naivecube<Summary> &nc)
 {
+  if (!isQueryValid(q)) {
+    return Summary();
+  }
   //////////////////////////////////////////////////////////////////////////////
   // parse the query json object
   //////////////////////////////////////////////////////////////////////////////

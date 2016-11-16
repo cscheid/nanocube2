@@ -60,8 +60,10 @@ struct ResultKey {
 template <typename Summary>
 json merge_query_result(const json &raw);
 
+bool isQueryValid(const json &q);
+
 ///////////////////////////////////////////////////////////////////////////////
-// Private Functions
+// Private Query Functions
 ///////////////////////////////////////////////////////////////////////////////
 template <typename T> 
 void query_range(const Nanocube<T> &nc, int dim_index, int starting_node,
@@ -79,14 +81,21 @@ void query_split(const Nanocube<T> &nc, int dim_index, int starting_node,
                  int64_t prefix, int depth, int resolution,
                  std::vector<QueryNode> &nodes);
 
+// given the query( for all dimensions ), recursively get the final results
+template <typename Summary>
+json query_json(const json &q,
+                const Nanocube<Summary> &nc,
+                bool insert_partial_overlap = false,
+                int dim = 0,
+                int index = -1);
+
 ///////////////////////////////////////////////////////////////////////////////
 // APIs
 ///////////////////////////////////////////////////////////////////////////////
 template <typename Summary>
-json NCQuery(json &q,
+json NCQuery(const json &q,
              const Nanocube<Summary> &nc,
-             bool insert_partial_overlap = false,
-             int dim = 0,
-             int index = -1);
+             bool insert_partial_overlap = false);
+
 
 #include "nanocube_traversals.inc"

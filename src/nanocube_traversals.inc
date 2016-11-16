@@ -109,11 +109,11 @@ void query_split(const Nanocube<T> &nc, int dim_index, int starting_node,
 }
 
 template <typename Summary>
-json NCQuery(json &q,
-             const Nanocube<Summary> &nc,
-             bool insert_partial_overlap,
-             int dim, 
-             int index)
+json query_json(const json &q,
+                const Nanocube<Summary> &nc,
+                bool insert_partial_overlap,
+                int dim, 
+                int index)
 {
 
   //////////////////////////////////////////////////////////////////////////////
@@ -205,13 +205,13 @@ json NCQuery(json &q,
     if(op == 1) { // split
       for(int i = 0; i < nodes.size(); i ++) {
         result[to_string(nodes[i].address)] = 
-          NCQuery(q, nc, insert_partial_overlap, dim+1,
-                  nc.dims.at(dim).at(nodes[i].index).next);
+          query_json(q, nc, insert_partial_overlap, dim+1,
+                     nc.dims.at(dim).at(nodes[i].index).next);
       }
 
     } else { // find || range || all
       for(int i = 0; i < nodes.size(); i ++) {
-        result.push_back(NCQuery(q, nc, insert_partial_overlap, dim+1,
+        result.push_back(query_json(q, nc, insert_partial_overlap, dim+1,
                          nc.dims.at(dim).at(nodes[i].index).next));
       }
     }
@@ -256,5 +256,19 @@ json merge_query_result(const json &raw)
       sum += t;
     }
     return sum;
+  }
+}
+
+template <typename Summary>
+json NCQuery(const json &q,
+             const Nanocube<Summary> &nc,
+             bool insert_partial_overlap)
+{
+  if (isQueryValid(q)) {
+    return query_json(q, nc, insert_partial_overlap);
+  } else {
+    // TODO maybe <Summary> should define a MINUS_ONE 
+    // to represent "invalid" or "error"
+    return Summary();
   }
 }

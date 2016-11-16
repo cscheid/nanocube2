@@ -16,74 +16,60 @@ std::ostream& operator<<(std::ostream& os, const QueryNode &n)
   return os;
 }
 
-//string QueryTestFind(Nanocube<int> &nc, int dim, int64_t address, int depth, bool validate, vector<pair<int64_t,int64_t> > &dataarray, vector<int> &schema)
-//{
-    //std::vector<QueryNode> nodes;
-    //if(dim == 0) {
-        //query_find(nc, dim, nc.base_root, address, depth, nodes);
-        //if (nodes.size() > 0) {
-            //std::stringstream buffer;
-            //buffer << "[\"" << nodes[0].index << "-" << nodes[0].depth;
-            //buffer << "-" << nodes[0].address << "\"]";
-            //return buffer.str();
-        //} else {
-            //return "";
-        //}
-    //} else {
-        //return "";
-    //}
-//}
+bool isQueryValid(const json &q)
+{
+  for (auto it = q.begin(); it != q.end(); ++ it) {
+    // the key must be a number
+    char* p;
+    long converted = strtol(it.key().c_str(), &p, 10);
+    if (*p) { // conversion failed
+      return false;
+    }
 
-//string QueryTestSplit(Nanocube<int> &nc, int dim, int64_t prefix, int depth,
-                   //int resolution,
-                   //bool validate, 
-                   //vector<pair<int64_t,int64_t> > &dataarray,
-                   //vector<int> &schema)
-//{
-    //std::vector<QueryNode> nodes;
-    //if(dim == 0) {
-        //query_split(nc, dim, nc.base_root, prefix, depth, resolution, nodes);
-        //if (nodes.size() > 0) {
-            //std::stringstream buffer;
-            //buffer << "[";
-            //for(int i = 0; i < nodes.size(); i ++) {
-                //if( i != 0) buffer << ",";
-                //buffer << "\"" << nodes[i].index << "-" << nodes[i].depth;
-                //buffer << "-" << nodes[i].address << "\"";
-            //}
-            //buffer << "]";
-            //return buffer.str();
-        //} else {
-            //return "";
-        //}
-    //} else {
-        //return "";
-    //}
-//}
+    json clause = it.value();
+    if ( !clause.is_object() ) return false;
+    if ( !clause["operation"].is_string() ) return false;
 
-//string QueryTestRange(Nanocube<int> &nc, int dim, int64_t lo, int64_t up,
-                      //int depth,
-                      //bool validate, 
-                      //vector<pair<int64_t,int64_t> > &dataarray,
-                      //vector<int> &schema)
-//{
-    //std::vector<QueryNode> nodes;
-    //if(dim == 0) {
-        //query_range(nc, dim, nc.base_root, lo, up, depth, nodes);
-        //if (nodes.size() > 0) {
-            //std::stringstream buffer;
-            //buffer << "[";
-            //for(int i = 0; i < nodes.size(); i ++) {
-                //if( i != 0) buffer << ",";
-                //buffer << "\"" << nodes[i].index << "-" << nodes[i].depth;
-                //buffer << "-" << nodes[i].address << "\"";
-            //}
-            //buffer << "]";
-            //return buffer.str();
-        //} else {
-            //return "";
-        //}
-    //} else {
-        //return "";
-    //}
-//}
+    string op_str = clause["operation"];
+    int op;
+    if(op_str == "find") op = 0;
+    else if(op_str == "split") op = 1;
+    else if(op_str == "range") op = 2;
+    else if(op_str == "all") op = 3;
+    else return false;
+
+    switch(op) {
+      case 0:
+        if (clause.count("prefix") != 1) return false;
+        if (clause["prefix"].count("address") != 1) return false;
+        if (clause["prefix"].count("depth") != 1) return false;
+        if ( ! clause["prefix"]["address"].is_number() ) return false;
+        if ( ! clause["prefix"]["depth"].is_number() ) return false;
+        break;
+      case 1: 
+        if (clause.count("prefix") != 1) return false;
+        if (clause.count("resolution") != 1) return false;
+        if (clause["prefix"].count("address") != 1) return false;
+        if (clause["prefix"].count("depth") != 1) return false;
+        if ( ! clause["prefix"]["address"].is_number() ) return false;
+        if ( ! clause["prefix"]["depth"].is_number() ) return false;
+        if ( ! clause["resolution"].is_number() ) return false;
+        break;
+      case 2: 
+        if (clause.count("lowerBound") != 1) return false;
+        if (clause.count("upperBound") != 1) return false;
+        if (clause["lowerBound"].count("address") != 1) return false;
+        if (clause["lowerBound"].count("depth") != 1) return false;
+        if (clause["upperBound"].count("address") != 1) return false;
+        if (clause["upperBound"].count("depth") != 1) return false;
+        if ( ! clause["lowerBound"]["address"].is_number() ) return false;
+        if ( ! clause["lowerBound"]["depth"].is_number() ) return false;
+        if ( ! clause["upperBound"]["address"].is_number() ) return false;
+        if ( ! clause["upperBound"]["depth"].is_number() ) return false;
+        break;
+    }
+
+  }
+
+  return true;
+}
