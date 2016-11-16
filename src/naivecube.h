@@ -23,5 +23,6 @@ struct Naivecube {
 template <typename Summary>
 json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc);
 
+json to_nested(const json &j);
 
 #include "naivecube.inc"

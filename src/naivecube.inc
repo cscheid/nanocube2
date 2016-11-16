@@ -1,3 +1,6 @@
+#include <boost/algorithm/string.hpp>
+
+
 template <typename Summary>
 void Naivecube<Summary>::insert(const Summary &value, const vector<int64_t> &address)
 {
@@ -118,8 +121,6 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
     }
     return sum;
   } else {
-    // TODO extra work for split
-
     // map split prefix to summary
     // split prefix is a chain of addresses
     map<vector<int64_t>, Summary> splits;
@@ -166,6 +167,29 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
       }
       result[addrPath] = it->second;
     }
-    return result;
+
+    // format result into nested json
+    return to_nested(result);
   }
+}
+
+json to_nested(const json &j)
+{
+  json nested;
+  for( auto it = j.begin(); it != j.end(); ++ it) {
+    vector<string> addresses;
+
+    string keyStr = it.key();
+
+    boost::split(addresses, keyStr, boost::is_any_of("-"));
+    json* current = &nested;
+    for(int i = 0; i < addresses.size(); ++i) {
+      if(current->find(addresses[i]) == current->end()) {
+        (*current)[addresses[i]] = nullptr;
+      }
+      current = &(*current)[addresses[i]];
+    }
+    *current = it.value();
+  }
+  return nested;
 }
