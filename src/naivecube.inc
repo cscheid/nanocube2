@@ -30,9 +30,10 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
   typedef pair<int64_t, int> prefix;
 
   vector<pair<prefix, prefix> > extents;
-
+  // a vector of (dim_index, split_depth)
+  vector<pair<int, int> > splitDims;
   bool hasSplit = false;
-
+  int split_depth;
   prefix p1, p2;
 
   for(int i = 0; i < nc.indexDims; i ++) {
@@ -58,11 +59,17 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
         case 1: prefix_addr = clause["prefix"]["address"];
                 prefix_depth = clause["prefix"]["depth"];
                 resolution = clause["resolution"];
-                // TODO use real split
-                p1 = make_pair(0,0);
-                p2 = make_pair((int64_t)1 << nc.dimWidth.at(i), 
-                                      nc.dimWidth.at(i));
-                extents.push_back(make_pair(p1, p2));
+                
+                // "split" also means "find" at prefix_address
+                p1 = make_pair(prefix_addr, prefix_depth);
+                extents.push_back(make_pair(p1,p1));
+
+                split_depth = prefix_depth + resolution;
+                if(split_depth > nc.dimWidth.at(i)) {
+                  split_depth = nc.dimWidth.at(i);
+                }
+
+                splitDims.push_back(make_pair(i, split_depth));
 
                 hasSplit = true;
                 break;
@@ -112,6 +119,53 @@ json NaiveCubeQuery(json &q, const Naivecube<Summary> &nc)
     return sum;
   } else {
     // TODO extra work for split
-    return Summary();
+
+    // map split prefix to summary
+    // split prefix is a chain of addresses
+    map<vector<int64_t>, Summary> splits;
+
+    for( auto it = nc.data.begin(); it != nc.data.end(); ++it) {
+      bool inExtents = true;
+      for(int i = 0; i < extents.size(); ++ i) {
+        // shift the address for comparision
+        int64_t left = it->first[i] >> (nc.dimWidth.at(i)-extents[i].first.second); 
+        int64_t right = it->first[i] >> (nc.dimWidth.at(i)-extents[i].second.second);
+        if( left >= extents[i].first.first && right <= extents[i].second.first) {
+          continue; // in extent
+        } else {
+          inExtents = false;
+          break;
+        }
+      }
+      if (inExtents) {
+        Summary current = it->second;
+        // now we dicide where do we put the current summary
+        vector<int64_t> splitPrefix;
+        for(int i = 0; i < splitDims.size(); ++ i) {
+          int64_t addr = it->first[splitDims[i].first];
+          int right_shift = nc.dimWidth.at(splitDims[i].first) - splitDims[i].second;
+          splitPrefix.push_back( addr >> right_shift);
+        }
+
+        if(splits.find(splitPrefix) == splits.end()) {
+          splits[splitPrefix] = current;
+        } else {
+          splits[splitPrefix] += current;
+        }
+
+      }
+    }
+  
+    json result;
+    for(auto it = splits.begin(); it != splits.end(); it ++) {
+      string addrPath= "";
+      for(int j = 0; j < splitDims.size(); j ++) {
+        if(j != 0) addrPath += "-";
+        addrPath += to_string(it->first[j]);
+        
+      }
+      result[addrPath] = it->second;
+    }
+    return result;
   }
 }
