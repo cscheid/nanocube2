@@ -15,16 +15,17 @@
 
 #include "nanocube.h"
 #include "nanocube_traversals.h"
+#include "naivecube.h"
 
 using json = nlohmann::json;
 
 
-static const char *s_http_port = "8800";
+static const char *s_http_port = "8801";
 static struct mg_serve_http_opts s_http_server_opts;
 
 static int qtreeLevel = 10;
 static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
-static Nanocube<int> nc(schema);
+static Naivecube<int> naivecube(schema);
 
 // convert lat,lon to quad tree address
 int64_t loc2addr(double lat, double lon, int qtreeLevel)
@@ -77,7 +78,7 @@ void buildCubes()
     int64_t d1 = loc2addr(ori_lat, ori_lon, qtreeLevel);
     int64_t d2 = loc2addr(des_lat, des_lon, qtreeLevel);
 
-    nc.insert(1, {d1, d2});
+    naivecube.insert(1, {d1, d2});
 
     if (++i % 10000 == 0) {
       //nc.report_size();
@@ -89,7 +90,7 @@ void buildCubes()
 static void handle_query_call(struct mg_connection *c, struct http_message *hm) {
 
   json q = json::parse(string(hm->body.p, hm->body.len));
-  json result = NCQuery(q, nc);
+  json result = NaiveCubeQuery(q, naivecube);
 
   /* Send result */
   std::string msg_content = result.dump();

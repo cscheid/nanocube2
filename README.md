@@ -29,8 +29,10 @@ cd bin
 ./ncserver
 ```
 
-By default, a nanocube server will serve on port `8000`.
+By default, a nanocube server will serve on port `8800`.
 
-A simple web ui will be served at: `http://localhost:8000/`
+The query api is `Domain:Port/query`
 
-The query json api is: `http://localhost:8000/query`
+## Query Test
+
+A simple web interface is provided at `./webui`

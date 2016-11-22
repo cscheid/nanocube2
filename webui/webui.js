@@ -24,11 +24,12 @@ $(document).ready(function(){
 
   // query button
   $('#btn_query').on('click', function () {
+    $('#result').text("");
 
     var query = jsoneditor.get();
 
     $.ajax({
-      url: '/query',
+      url: $("#query_url").val(),
       method: 'POST',
       dataType: 'json',
       data: JSON.stringify(query),
