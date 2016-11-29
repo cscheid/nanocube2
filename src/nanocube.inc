@@ -507,7 +507,11 @@ void Nanocube<Summary>::update_tree
     }
 
     NCDimNode &node = dims.at(dim).at(current);
-    if( (node.left != -1 && node.right != -1) || 
+
+    // update and insert at the n-1 dimension should mutate the whole tree
+    // the nodes point to the same summary need to point to the new summary
+    if( dim == dims.size()-1 ||  // TODO find better solution
+        (node.left != -1 && node.right != -1) || 
         (depth == dimWidth) ) {
       mutant_nodes.push(make_pair(current, dim));
     }
