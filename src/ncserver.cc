@@ -77,7 +77,12 @@ void buildCubes()
     int64_t d1 = loc2addr(ori_lat, ori_lon, qtreeLevel);
     int64_t d2 = loc2addr(des_lat, des_lon, qtreeLevel);
 
-    nc.insert(1, {d1, d2});
+    nc.new_insert(1, {d1, d2});
+    
+    //nc.new_insert(1, {0, 0});
+    //if (++i == 5) {
+      //return;
+    //}
 
     if (++i % 10000 == 0) {
       //nc.report_size();
@@ -136,6 +141,7 @@ int main(int argc, char *argv[]) {
 
   // build Gaussian Cubes
   buildCubes();
+  //nc.dump_internals(true);
 
   printf("Starting server on port %s\n", s_http_port);
 

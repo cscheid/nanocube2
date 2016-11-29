@@ -434,6 +434,93 @@ void Nanocube<Summary>::insert
 }
 
 template <typename Summary>
+void Nanocube<Summary>::new_insert
+(const Summary &summary, const vector<int64_t> &addresses)
+{
+  // traverse tree, if a node has two child or is a leaf node
+  // put into queue until the position to insert
+  //      if the node exists, do the same thing, else insert fresh node
+  // Get one node from queue, if it is the n-1 dimension, do the update
+  // else do the same traversal for node.next
+  stack<pair<int, int> > mutant_nodes; // <index, dim>
+  mutant_nodes.push(make_pair(base_root, 0));
+  while(mutant_nodes.size() != 0) {
+    pair<int, int> current = mutant_nodes.top();
+    mutant_nodes.pop();
+
+    assert(current.second <= dims.size());
+
+    // only happens at the first time
+    if (current.first == -1) {
+      pair<int, int> insert_result = insert_fresh_node(summary, addresses, current.second, 0);
+      base_root = insert_result.first;
+      return;
+    }
+
+    assert(current.first != -1);
+    if(current.second == dims.size()-1) {
+      // if current is n-1 dimension, do the update
+      // TODO need a summary cache
+      NCDimNode &node = dims.at(current.second).at(current.first);
+      const Summary &other_summary = summaries.values.at(node.next);
+      Summary new_summary = other_summary + summary;
+
+      release_node_ref(node.next, current.second+1);
+
+      int new_ref = summaries.insert(new_summary);
+      node.next = new_ref;
+
+    } else {
+      // else keep updating for the next dimension
+      update_tree(summary, 
+                  addresses,
+                  current.second+1,
+                  dims.at(current.second).at(current.first).next,
+                  mutant_nodes);
+    }
+  }
+}
+
+
+// from the root index to traverse the tree
+// find all nodes that need to be updated
+// insert a fresh node if the desired node doesn't exist
+template <typename Summary>
+void Nanocube<Summary>::update_tree
+(const Summary &summary, const vector<int64_t> addresses, const int dim, 
+ const int node_index, stack<pair<int, int> > &mutant_nodes)
+{
+  int depth = 0;
+  int current = node_index;
+  int previous = -1;
+  int dimWidth = dims.at(dim).width;
+  while(depth <= dimWidth) {
+    //cout << "begin refinement\n";
+    if (current == -1) {
+      // insert fresh node here
+      pair<int, int> insert_result = 
+        insert_fresh_node(summary, addresses, dim, depth);
+      int where_to_insert = get_bit(addresses[dim], dimWidth-depth-1-1);
+      (!where_to_insert) ? dims.at(dim).at(previous).right = insert_result.first : dims.at(dim).at(previous).left = insert_result.first;
+      break; // if it's an insert, we can stop now
+
+    }
+
+    NCDimNode &node = dims.at(dim).at(current);
+    if( (node.left != -1 && node.right != -1) || 
+        (depth == dimWidth) ) {
+      mutant_nodes.push(make_pair(current, dim));
+    }
+
+    // refine 
+    depth += 1;
+    int where_to_insert = get_bit(addresses[dim], dimWidth-depth-1);
+    previous = current;
+    current = (!where_to_insert) ? node.right : node.left;
+  }
+}
+
+template <typename Summary>
 void Nanocube<Summary>::compact() {
   auto previous_map = summaries.compact();
   for (auto rb = dims.rbegin(), re = dims.rend(); re != rb; ++rb) {

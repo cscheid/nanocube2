@@ -5,6 +5,7 @@
 #include <vector>
 #include <utility>
 #include <set>
+#include <stack>
 #include <map>
 #include <unordered_map>
 #include <cassert>
@@ -50,6 +51,8 @@ struct Nanocube {
   pair<int, int> merge(int left, int right, int dim, SummaryCache &summary_cache);
 
   void insert(const Summary &summary, const vector<int64_t> &addresses);
+  void new_insert(const Summary &summary, const vector<int64_t> &addresses);
+  void update_tree(const Summary &summary, const vector<int64_t> addresses, const int dim, const int node_index, stack<pair<int, int> > &mutant_nodes);
 
   /****************************************************************************/
   // simple accessors
