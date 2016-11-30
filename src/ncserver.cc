@@ -99,12 +99,12 @@ void buildTestCubes()
 {
   nc.new_insert(1, {0, 0});
   nc.new_insert(1, {1, 0});
-  nc.new_insert(1, {2, 0});
-  nc.new_insert(1, {3, 0});
-  nc.new_insert(1, {0, 0});
-  nc.new_insert(1, {0, 1});
-  nc.new_insert(1, {0, 2});
-  nc.new_insert(1, {0, 3});
+  //nc.new_insert(1, {2, 0});
+  //nc.new_insert(1, {3, 0});
+  //nc.new_insert(1, {0, 0});
+  //nc.new_insert(1, {0, 1});
+  //nc.new_insert(1, {0, 2});
+  //nc.new_insert(1, {0, 3});
 }
 
 static void handle_query_call(struct mg_connection *c, struct http_message *hm) {

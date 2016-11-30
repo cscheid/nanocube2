@@ -570,19 +570,6 @@ void Nanocube<Summary>::update_tree
       // mutant_nodes because it should be mutated
       if (parent_node.right != -1 && parent_node.left != -1) {
         mutant_nodes.push(make_pair(previous, dim));
-        // if the parent shares the same next pointer with the other child
-        // we need to make a copy of the next tree 
-        // and make the parent point to the copy
-        //if (dim < dims.size()-1) { // don't need to copy the last dimension
-          //auto copy_index = copy_tree(addresses, parent_node.next, dim+1);
-          //make_node_ref(copy_index.first, dim+1);
-          //release_node_ref(parent_node.next, dim+1);
-          //parent_node.next = copy_index.first;
-          //// FIXME also update the chilren of 'other_child'
-          //// TODO This situation seems won't happen. Because if they are shared,
-          //// then updat 'other_child' is enough. If they are not shared, won't 
-          //// need to do anything about hte children of 'other_child'
-        //}
       }
 
       break; // if it's an insert, we can stop now
@@ -650,10 +637,6 @@ pair<int, int> Nanocube<Summary>::copy_tree
       previous = new_index;
     }
 
-    //if( depth == dimWidth ) {
-      //break;
-    //}
-
     // refine 
     depth += 1;
     int where_to_insert = get_bit(addresses[dim], dimWidth-depth);
@@ -662,38 +645,7 @@ pair<int, int> Nanocube<Summary>::copy_tree
   }
   cout << endl;
 
-  // TODO fix this function
   return make_pair(new_root, dim);
-
-  //assert(index != -1);
-  //assert(dim <= dims.size()-1);
-
-  //cout << "get source node " << dim << ", " << index << endl;
-  //NCDimNode &source_node = dims.at(dim).at(index);
-  //NCDimNode copied_node { -1, -1, -1};
-
-  //if (source_node.left >= 0) {
-    ////cout << "copy left: " << dim << ", " << source_node.left << endl;
-    //copied_node.left = copy_tree(addresses, source_node.left, dim).first;
-  //}
-
-  //if (source_node.right >= 0 ) {
-    ////cout << "copy right: " << dim << ", " << source_node.right << endl;
-    //copied_node.right = copy_tree(addresses, source_node.right, dim).first;
-  //}
-
-  //if (dim == dims.size()-1) { // last dimension don't need to copy 'next'
-    //copied_node.next = source_node.next;
-    //this->summaries.make_ref(copied_node.next);
-  //} else {
-    //copied_node.next = copy_tree(addresses, source_node.next, dim+1).first;
-  //}
-
-
-  ////cout << "insert copyied node: " << copied_node.left << ", ";
-  ////cout << copied_node.right << ", " << copied_node.next << endl;
-  //int new_index = dims.at(dim).nodes.insert(copied_node);
-  //return make_pair(new_index, dim);
 }
 
 template <typename Summary>
