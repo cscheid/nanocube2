@@ -437,45 +437,71 @@ template <typename Summary>
 void Nanocube<Summary>::new_insert
 (const Summary &summary, const vector<int64_t> &addresses)
 {
+  // only happens at the first time
+  if (base_root == -1) {
+    pair<int, int> insert_result = insert_fresh_node(summary, addresses, 0, 0);
+    base_root = insert_result.first;
+    make_node_ref(base_root, 0);
+    return;
+  }
+
   // traverse tree, if a node has two child or is a leaf node
   // put into queue until the position to insert
   //      if the node exists, do the same thing, else insert fresh node
   // Get one node from queue, if it is the n-1 dimension, do the update
   // else do the same traversal for node.next
   stack<pair<int, int> > mutant_nodes; // <index, dim>
-  mutant_nodes.push(make_pair(base_root, 0));
+  mutant_nodes.push(make_pair(base_root, -1));
+
+  // summary cache 
+  // key: summary index
+  // value: new summary index
+  map<int, int> cache;
+  
   while(mutant_nodes.size() != 0) {
     pair<int, int> current = mutant_nodes.top();
     mutant_nodes.pop();
 
     assert(current.second <= dims.size());
-
-    // only happens at the first time
-    if (current.first == -1) {
-      pair<int, int> insert_result = insert_fresh_node(summary, addresses, current.second, 0);
-      base_root = insert_result.first;
-      return;
-    }
-
     assert(current.first != -1);
+
     if(current.second == dims.size()-1) {
       // if current is n-1 dimension, do the update
-      // TODO need a summary cache
       NCDimNode &node = dims.at(current.second).at(current.first);
-      const Summary &other_summary = summaries.values.at(node.next);
-      Summary new_summary = other_summary + summary;
+      // if node.next already in cache, then just point node.next to
+      // existing new summary
+      auto f = cache.find(node.next);
+      //cout << node.next << endl;
+      if (f == cache.end()) {
+        const Summary &other_summary = summaries.values.at(node.next);
+        Summary new_summary = other_summary + summary;
+        int new_ref = summaries.insert(new_summary);
 
-      release_node_ref(node.next, current.second+1);
+        cache[node.next] = new_ref;
+        this->summaries.make_ref(new_ref);
+        this->summaries.release_ref(node.next);
 
-      int new_ref = summaries.insert(new_summary);
-      node.next = new_ref;
+        node.next = new_ref;
+      } else {
+        this->summaries.release_ref(node.next);
+        node.next = f->second;
+        this->summaries.make_ref(node.next);
+      }
 
     } else {
       // else keep updating for the next dimension
+      int next_index = -1;
+
+      // base_root
+      if ( current.second == -1 ) {
+        next_index = base_root;
+      } else {
+        next_index = dims.at(current.second).at(current.first).next;
+      }
       update_tree(summary, 
                   addresses,
                   current.second+1,
-                  dims.at(current.second).at(current.first).next,
+                  next_index,
                   mutant_nodes);
     }
   }
@@ -500,10 +526,10 @@ void Nanocube<Summary>::update_tree
       // insert fresh node here
       pair<int, int> insert_result = 
         insert_fresh_node(summary, addresses, dim, depth);
+      make_node_ref(insert_result.first, dim);
       int where_to_insert = get_bit(addresses[dim], dimWidth-depth-1-1);
-      (!where_to_insert) ? dims.at(dim).at(previous).right = insert_result.first : dims.at(dim).at(previous).left = insert_result.first;
+      (!where_to_insert) ? dims.at(dim).at(previous).left = insert_result.first : dims.at(dim).at(previous).right = insert_result.first;
       break; // if it's an insert, we can stop now
-
     }
 
     NCDimNode &node = dims.at(dim).at(current);
@@ -520,7 +546,7 @@ void Nanocube<Summary>::update_tree
     depth += 1;
     int where_to_insert = get_bit(addresses[dim], dimWidth-depth-1);
     previous = current;
-    current = (!where_to_insert) ? node.right : node.left;
+    current = (!where_to_insert) ? node.left : node.right;
   }
 }
 
