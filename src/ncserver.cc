@@ -24,7 +24,7 @@ static struct mg_serve_http_opts s_http_server_opts;
 
 static int qtreeLevel = 10;
 //static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
-static vector<int> schema = {4, 4};
+static vector<int> schema = {3, 3};
 static Nanocube<int> nc(schema);
 
 // convert lat,lon to quad tree address
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
   // build Gaussian Cubes
   //buildCubes();
   buildTestCubes();
-  //nc.dump_internals(true);
+  nc.dump_internals(true);
 
   clock_t end = clock();
   double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;

@@ -119,6 +119,12 @@ inline void Nanocube<Summary>::release_node_ref(int node_index, int dim)
 }
 
 template <typename Summary>
+inline int Nanocube<Summary>::get_node_ref(int node_index, int dim)
+{
+  return dims.at(dim).nodes.ref_counts.at(node_index);
+}
+
+template <typename Summary>
 pair<int, int> Nanocube<Summary>::insert_fresh_node
 (const Summary &summary, const vector<int64_t> &addresses, int dim, int bit)
 {
@@ -491,20 +497,45 @@ void Nanocube<Summary>::new_insert
 
     } else {
       // else keep updating for the next dimension
-      int next_index = -1;
 
       // base_root
       if ( current.second == -1 ) {
-        next_index = base_root;
+        update_tree(summary, 
+                    addresses,
+                    current.second+1,
+                    base_root,
+                    mutant_nodes);
       } else {
-        next_index = dims.at(current.second).at(current.first).next;
+        int next_index = dims.at(current.second).at(current.first).next;
+        if (get_node_ref(next_index, current.second+1) > 1) {
+          // has multiple parents, make a copy
+          cout << "copy the next of node: " << current.first << ", " << current.second << endl;
+          auto copy = copy_tree(addresses, next_index, current.second+1);
+          release_node_ref(next_index, current.second+1);
+          make_node_ref(copy.first, copy.second);
+
+          dims.at(current.second).at(current.first).next = copy.first;
+          update_tree(summary, 
+                      addresses,
+                      current.second+1,
+                      copy.first,
+                      mutant_nodes);
+          // TODO we also need to modify the next pointers of the prefix nodes 
+          // who originally have shared 'next'
+          // for n in all_previous_shared:
+          //    n.next = copy.first
+          // *Implementation* put all path nodes in mutant_nodes 
+          // have a cache store already updated n->next
+          // if n_i->next need to be updated, find it in the cache
+          // if already updated, assign the new next to it directly
+        } else {
+          update_tree(summary, 
+                      addresses,
+                      current.second+1,
+                      next_index,
+                      mutant_nodes);
+        }
       }
-      cout << " --- update tree: " << next_index << ", " << current.second+1 << endl;
-      update_tree(summary, 
-                  addresses,
-                  current.second+1,
-                  next_index,
-                  mutant_nodes);
     }
   }
 }
@@ -515,14 +546,14 @@ void Nanocube<Summary>::new_insert
 // insert a fresh node if the desired node doesn't exist
 template <typename Summary>
 void Nanocube<Summary>::update_tree
-(const Summary &summary, const vector<int64_t> addresses, const int dim, 
+(const Summary &summary, const vector<int64_t> &addresses, const int dim, 
  const int node_index, stack<pair<int, int> > &mutant_nodes)
 {
   int depth = 0;
   int current = node_index;
   int previous = -1;
   int dimWidth = dims.at(dim).width;
-  cout << "dim depth: " << dimWidth << endl;
+  //cout << "dim depth: " << dimWidth << endl;
   while(depth <= dimWidth) {
     //cout << "begin refinement\n";
     if (current == -1) {
@@ -541,16 +572,17 @@ void Nanocube<Summary>::update_tree
         mutant_nodes.push(make_pair(previous, dim));
         // if the parent shares the same next pointer with the other child
         // we need to make a copy of the next tree 
-        // and make the child point to the copy
-        if (dim < dims.size()-1) { // don't need to copy the last dimension
-          int other_child_index = where_to_insert ? parent_node.left : parent_node.right;
-          NCDimNode &other_child = dims.at(dim).at(other_child_index);
-          auto copy_index = copy_tree(other_child.next, dim+1);
-          make_node_ref(copy_index.first, dim+1);
-          release_node_ref(other_child.next, dim+1);
-          other_child.next = copy_index.first;
-          // FIXME also update the chilren of 'other_child'
-        }
+        // and make the parent point to the copy
+        //if (dim < dims.size()-1) { // don't need to copy the last dimension
+          //auto copy_index = copy_tree(addresses, parent_node.next, dim+1);
+          //make_node_ref(copy_index.first, dim+1);
+          //release_node_ref(parent_node.next, dim+1);
+          //parent_node.next = copy_index.first;
+          //// FIXME also update the chilren of 'other_child'
+          //// TODO This situation seems won't happen. Because if they are shared,
+          //// then updat 'other_child' is enough. If they are not shared, won't 
+          //// need to do anything about hte children of 'other_child'
+        //}
       }
 
       break; // if it's an insert, we can stop now
@@ -574,49 +606,94 @@ void Nanocube<Summary>::update_tree
     // refine 
     depth += 1;
     int where_to_insert = get_bit(addresses[dim], dimWidth-depth);
-    cout << "depth: " << depth << endl;
-    cout << "bit: " << dimWidth-depth << endl;
-    cout << "where_to_insert: " << where_to_insert << endl;
+    //cout << "depth: " << depth << endl;
+    //cout << "bit: " << dimWidth-depth << endl;
+    //cout << "where_to_insert: " << where_to_insert << endl;
     previous = current;
     current = (!where_to_insert) ? node.left : node.right;
   }
 }
 
 template <typename Summary>
-pair<int, int> Nanocube<Summary>::copy_tree(int index, int dim)
+pair<int, int> Nanocube<Summary>::copy_tree
+(const vector<int64_t> &addresses, int index, int dim)
 {
-  // TODO fix this function
-  return make_pair(index, dim);
+  cout << "copy tree root at: " << index << ", dim: " << dim << endl;
+  int depth = 0;
+  int current = index;
+  int previous = -1;
+  int new_root = -1;
+  int dimWidth = dims.at(dim).width;
+  stack<int> path;
 
-  assert(index != -1);
-  assert(dim <= dims.size()-1);
+  while(depth <= dimWidth) {
+    if (current == -1) {
+      break;
+    }
+
+    NCDimNode copied_node(dims.at(dim).at(current));
+    int new_index = dims.at(dim).nodes.insert(copied_node);
+    // since we have a copy, we need to increase the referece for each copied node
+    make_node_ref(copied_node.next, dim+1);
+    cout << "source: " << index <<": " << copied_node.left << ", " << copied_node.right << ", " << copied_node.next << endl;
+    cout << new_index << "->";
+    if (previous == -1) {
+      // this means the new node is a copy of old root
+      new_root = new_index;
+      previous = new_index;
+    } else {
+      // only reference here, don't make reference of root node
+      make_node_ref(new_index, dim);
+      NCDimNode &parent = dims.at(dim).at(previous);
+      int where_to_insert = get_bit(addresses[dim], dimWidth-depth);
+      (!where_to_insert) ? parent.left = new_index : parent.right = new_index;
+      previous = new_index;
+    }
+
+    //if( depth == dimWidth ) {
+      //break;
+    //}
+
+    // refine 
+    depth += 1;
+    int where_to_insert = get_bit(addresses[dim], dimWidth-depth);
+    NCDimNode &node = dims.at(dim).at(current);
+    current = (!where_to_insert) ? node.left : node.right;
+  }
+  cout << endl;
+
+  // TODO fix this function
+  return make_pair(new_root, dim);
+
+  //assert(index != -1);
+  //assert(dim <= dims.size()-1);
 
   //cout << "get source node " << dim << ", " << index << endl;
-  NCDimNode &source_node = dims.at(dim).at(index);
-  NCDimNode copied_node { -1, -1, -1};
+  //NCDimNode &source_node = dims.at(dim).at(index);
+  //NCDimNode copied_node { -1, -1, -1};
 
-  if (source_node.left >= 0) {
-    //cout << "copy left: " << dim << ", " << source_node.left << endl;
-    copied_node.left = copy_tree(source_node.left, dim).first;
-  }
+  //if (source_node.left >= 0) {
+    ////cout << "copy left: " << dim << ", " << source_node.left << endl;
+    //copied_node.left = copy_tree(addresses, source_node.left, dim).first;
+  //}
 
-  if (source_node.right >= 0 ) {
-    //cout << "copy right: " << dim << ", " << source_node.right << endl;
-    copied_node.right = copy_tree(source_node.right, dim).first;
-  }
+  //if (source_node.right >= 0 ) {
+    ////cout << "copy right: " << dim << ", " << source_node.right << endl;
+    //copied_node.right = copy_tree(addresses, source_node.right, dim).first;
+  //}
 
-  if (dim == dims.size()-1) { // last dimension don't need to copy 'next'
-    copied_node.next = source_node.next;
-    this->summaries.make_ref(copied_node.next);
-  } else {
-    copied_node.next = copy_tree(source_node.next, dim+1).first;
-  }
+  //if (dim == dims.size()-1) { // last dimension don't need to copy 'next'
+    //copied_node.next = source_node.next;
+    //this->summaries.make_ref(copied_node.next);
+  //} else {
+    //copied_node.next = copy_tree(addresses, source_node.next, dim+1).first;
+  //}
 
 
-  //cout << "insert copyied node: " << copied_node.left << ", ";
-  //cout << copied_node.right << ", " << copied_node.next << endl;
-  int new_index = dims.at(dim).nodes.insert(copied_node);
-  return make_pair(new_index, dim);
+  ////cout << "insert copyied node: " << copied_node.left << ", ";
+  ////cout << copied_node.right << ", " << copied_node.next << endl;
+  //int new_index = dims.at(dim).nodes.insert(copied_node);
+  //return make_pair(new_index, dim);
 }
 
 template <typename Summary>

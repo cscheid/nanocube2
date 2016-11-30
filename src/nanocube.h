@@ -53,8 +53,8 @@ struct Nanocube {
   void insert(const Summary &summary, const vector<int64_t> &addresses);
 
   void new_insert(const Summary &summary, const vector<int64_t> &addresses);
-  void update_tree(const Summary &summary, const vector<int64_t> addresses, const int dim, const int node_index, stack<pair<int, int> > &mutant_nodes);
-  pair<int, int> copy_tree(int index, int dim);
+  void update_tree(const Summary &summary, const vector<int64_t> &addresses, const int dim, const int node_index, stack<pair<int, int> > &mutant_nodes);
+  pair<int, int> copy_tree(const vector<int64_t> &addresses, int index, int dim);
   /****************************************************************************/
   // simple accessors
   inline int get_summary_index(int node_index, int dim);
@@ -68,6 +68,7 @@ struct Nanocube {
   // utility
   inline void release_node_ref(int node_index, int dim);
   inline int make_node_ref(int node_index, int dim);
+  inline int get_node_ref(int node_index, int dim);
 
   inline void set_left_node_ref(int node_index, int dim, int value);
   inline void set_right_node_ref(int node_index, int dim, int value);
