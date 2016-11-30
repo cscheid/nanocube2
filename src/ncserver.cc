@@ -24,7 +24,7 @@ static struct mg_serve_http_opts s_http_server_opts;
 
 static int qtreeLevel = 10;
 //static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
-static vector<int> schema = {3, 3};
+static vector<int> schema = {4, 4};
 static Nanocube<int> nc(schema);
 
 // convert lat,lon to quad tree address
