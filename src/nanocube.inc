@@ -509,7 +509,7 @@ void Nanocube<Summary>::new_insert
         int next_index = dims.at(current.second).at(current.first).next;
         if (get_node_ref(next_index, current.second+1) > 1) {
           // has multiple parents, make a copy
-          cout << "copy the next of node: " << current.first << ", " << current.second << endl;
+          //cout << "copy the next of node: " << current.first << ", " << current.second << endl;
           auto copy = copy_tree(addresses, next_index, current.second+1);
           release_node_ref(next_index, current.second+1);
           make_node_ref(copy.first, copy.second);
@@ -605,7 +605,7 @@ template <typename Summary>
 pair<int, int> Nanocube<Summary>::copy_tree
 (const vector<int64_t> &addresses, int index, int dim)
 {
-  cout << "copy tree root at: " << index << ", dim: " << dim << endl;
+  //cout << "copy tree root at: " << index << ", dim: " << dim << endl;
   int depth = 0;
   int current = index;
   int previous = -1;
@@ -622,8 +622,8 @@ pair<int, int> Nanocube<Summary>::copy_tree
     int new_index = dims.at(dim).nodes.insert(copied_node);
     // since we have a copy, we need to increase the referece for each copied node
     make_node_ref(copied_node.next, dim+1);
-    cout << "source: " << index <<": " << copied_node.left << ", " << copied_node.right << ", " << copied_node.next << endl;
-    cout << new_index << "->";
+    //cout << "source: " << index <<": " << copied_node.left << ", " << copied_node.right << ", " << copied_node.next << endl;
+    //cout << new_index << "->";
     if (previous == -1) {
       // this means the new node is a copy of old root
       new_root = new_index;
@@ -643,7 +643,7 @@ pair<int, int> Nanocube<Summary>::copy_tree
     NCDimNode &node = dims.at(dim).at(current);
     current = (!where_to_insert) ? node.left : node.right;
   }
-  cout << endl;
+  //cout << endl;
 
   return make_pair(new_root, dim);
 }
