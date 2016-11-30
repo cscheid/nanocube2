@@ -23,7 +23,8 @@ static const char *s_http_port = "8800";
 static struct mg_serve_http_opts s_http_server_opts;
 
 static int qtreeLevel = 10;
-static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
+//static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
+static vector<int> schema = {3, 3};
 static Nanocube<int> nc(schema);
 
 // convert lat,lon to quad tree address
@@ -77,10 +78,13 @@ void buildCubes()
     int64_t d1 = loc2addr(ori_lat, ori_lon, qtreeLevel);
     int64_t d2 = loc2addr(des_lat, des_lon, qtreeLevel);
 
+    //nc.insert(1, {d1, d2});
+   
     nc.new_insert(1, {d1, d2});
     
     //nc.new_insert(1, {0, 0});
-    //if (++i == 5) {
+    //nc.insert(1, {0, 0});
+    //if (++i == 10) {
       //return;
     //}
 
@@ -89,6 +93,18 @@ void buildCubes()
       cout << i << endl;
     }
   }
+}
+
+void buildTestCubes()
+{
+  nc.new_insert(1, {0, 0});
+  nc.new_insert(1, {1, 0});
+  nc.new_insert(1, {2, 0});
+  nc.new_insert(1, {3, 0});
+  nc.new_insert(1, {0, 0});
+  nc.new_insert(1, {0, 1});
+  nc.new_insert(1, {0, 2});
+  nc.new_insert(1, {0, 3});
 }
 
 static void handle_query_call(struct mg_connection *c, struct http_message *hm) {
@@ -139,9 +155,17 @@ int main(int argc, char *argv[]) {
   s_http_server_opts.document_root = "./";
   s_http_server_opts.enable_directory_listing = "no";
 
+  clock_t begin = clock();
+
+
   // build Gaussian Cubes
-  buildCubes();
+  //buildCubes();
+  buildTestCubes();
   //nc.dump_internals(true);
+
+  clock_t end = clock();
+  double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+  cout << "Used Time: " << elapsed_secs << " seconds" << endl;
 
   printf("Starting server on port %s\n", s_http_port);
 
