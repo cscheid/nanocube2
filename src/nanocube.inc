@@ -506,12 +506,19 @@ void Nanocube<Summary>::new_insert
                     base_root,
                     mutant_nodes);
       } else {
-        int next_index = dims.at(current.second).at(current.first).next;
-        if (get_node_ref(next_index, current.second+1) > 1) {
+        NCDimNode &current_node = dims.at(current.second).at(current.first);
+        // if current is a leaf node, no need to make a copy
+        if ( current_node.left == -1 && current_node.right == -1 ) {
+          update_tree(summary, 
+                      addresses,
+                      current.second+1,
+                      current_node.next,
+                      mutant_nodes);
+        } else if (get_node_ref(current_node.next, current.second+1) > 1) {
           // has multiple parents, make a copy
           //cout << "copy the next of node: " << current.first << ", " << current.second << endl;
-          auto copy = copy_tree(addresses, next_index, current.second+1);
-          release_node_ref(next_index, current.second+1);
+          auto copy = copy_tree(addresses, current_node.next, current.second+1);
+          release_node_ref(current_node.next, current.second+1);
           make_node_ref(copy.first, copy.second);
 
           dims.at(current.second).at(current.first).next = copy.first;
@@ -528,11 +535,13 @@ void Nanocube<Summary>::new_insert
           // have a cache store already updated n->next
           // if n_i->next need to be updated, find it in the cache
           // if already updated, assign the new next to it directly
+          // use a map to store already updated nodes, these don't need to be copied
+
         } else {
           update_tree(summary, 
                       addresses,
                       current.second+1,
-                      next_index,
+                      current_node.next,
                       mutant_nodes);
         }
       }
@@ -568,7 +577,10 @@ void Nanocube<Summary>::update_tree
 
       // after insertion, if the parent node is a full node now, put it in
       // mutant_nodes because it should be mutated
-      if (parent_node.right != -1 && parent_node.left != -1) {
+      // don't need to include it if this is the last dimension
+      if (dim < dims.size()-1 && 
+          parent_node.right != -1 && 
+          parent_node.left != -1) {
         mutant_nodes.push(make_pair(previous, dim));
       }
 
