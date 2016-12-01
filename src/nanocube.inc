@@ -507,44 +507,76 @@ void Nanocube<Summary>::new_insert
                     mutant_nodes);
       } else {
         NCDimNode &current_node = dims.at(current.dim).at(current.index);
-        // if current is a leaf node, no need to make a copy
-        if ( current_node.left == -1 && current_node.right == -1 ) {
+        // if current is a leaf node, or
+        // if current->next only has one reference, 
+        // then no need to make a copy, just update in place
+        if ( (current_node.left == -1 && current_node.right == -1) ||
+             (get_node_ref(current_node.next, current.dim+1) == 1) ) {
           update_tree(summary, 
                       addresses,
                       current.dim+1,
                       current_node.next,
                       mutant_nodes);
-        } else if (get_node_ref(current_node.next, current.dim+1) > 1) {
-          // has multiple parents, make a copy
+        } else {
+          // current->next is shared by multiple nodes, 
+          // make a copy and re-point all parents of current nodes to the new_next
           //cout << "copy the next of node: " << current.first << ", " << current.second << endl;
           auto copy = copy_tree(addresses, current_node.next, current.dim+1);
           release_node_ref(current_node.next, current.dim+1);
           make_node_ref(copy.first, copy.second);
 
-          dims.at(current.dim).at(current.index).next = copy.first;
           update_tree(summary, 
                       addresses,
                       current.dim+1,
                       copy.first,
                       mutant_nodes);
-          // TODO we also need to modify the next pointers of the prefix nodes 
-          // who originally have shared 'next'
-          // for n in all_previous_shared:
-          //    n.next = copy.first
-          // *Implementation* put all path nodes in mutant_nodes 
-          // have a cache store already updated n->next
-          // if n_i->next need to be updated, find it in the cache
-          // if already updated, assign the new next to it directly
-          // use a map to store already updated nodes, these don't need to be copied
-
-        } else {
-          update_tree(summary, 
-                      addresses,
-                      current.dim+1,
-                      current_node.next,
-                      mutant_nodes);
+          // update the 'next' pointer of all parents that used to
+          // point to the same 'old_next'
+          // TODO currently just traverse the tree from the root to current node
+          // maybe we can optimise this in the future
+          //dims.at(current.dim).at(current.index).next = copy.first;
+          // update_next_pointer(dim, root_index, current_index, old_next, new_next);
+          update_next_pointer( 
+            addresses, current.dim, current.root_index, current.index, 
+            dims.at(current.dim).at(current.index).next,
+            copy.first
+          );
         }
       }
+    }
+  }
+}
+
+
+// update the next pointers for nodes along the path from 
+// Nodes[root_index] to Nodes[stop_index]
+// only update the node that node.next == old_next
+template <typename Summary>
+void Nanocube<Summary>::update_next_pointer
+(const vector<int64_t> &addresses, int dim, int root_index, int stop_index,
+ int old_next, int new_next)
+{
+  //cout << "update next pointer: " << endl;
+  //cout << "dim: " << dim << ", root:" << root_index << ", stop:" << stop_index;
+  //cout << ", old_next: " << old_next << ", new_next: " << new_next << endl;
+  int depth = 0;
+  int current = root_index;
+  int dimWidth = dims.at(dim).width;
+
+  while(depth <= dimWidth) {
+    NCDimNode &current_node = dims.at(dim).at(current);
+    if (current_node.next == old_next) {
+      current_node.next = new_next;
+    }
+
+    if (current == stop_index) {
+      // don't update the nodes after Nodes[stop_index]
+      break;
+    } else {
+      // refine 
+      depth += 1;
+      int where_to_insert = get_bit(addresses[dim], dimWidth-depth);
+      current = (!where_to_insert) ? current_node.left : current_node.right;
     }
   }
 }
