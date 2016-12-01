@@ -31,6 +31,12 @@ struct NCDim {
   inline size_t size() const { return nodes.values.size(); };
 };
 
+struct NCMutantNode {
+  //root_index is the root of the tree which contains this node
+  int index, dim, root_index; 
+  NCMutantNode(int i, int d, int r): index(i), dim(d), root_index(r) {};
+};
+
 struct PairHasher {
   size_t operator()(const pair<int, int> &p) const {
     // FIXME FIND BETTER HASHER
@@ -53,7 +59,7 @@ struct Nanocube {
   void insert(const Summary &summary, const vector<int64_t> &addresses);
 
   void new_insert(const Summary &summary, const vector<int64_t> &addresses);
-  void update_tree(const Summary &summary, const vector<int64_t> &addresses, const int dim, const int node_index, stack<pair<int, int> > &mutant_nodes);
+  void update_tree(const Summary &summary, const vector<int64_t> &addresses, const int dim, const int node_index, stack<NCMutantNode> &mutant_nodes);
   pair<int, int> copy_tree(const vector<int64_t> &addresses, int index, int dim);
   /****************************************************************************/
   // simple accessors
