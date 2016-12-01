@@ -522,8 +522,6 @@ void Nanocube<Summary>::new_insert
           // make a copy and re-point all parents of current nodes to the new_next
           //cout << "copy the next of node: " << current.first << ", " << current.second << endl;
           auto copy = copy_tree(addresses, current_node.next, current.dim+1);
-          release_node_ref(current_node.next, current.dim+1);
-          make_node_ref(copy.first, copy.second);
 
           update_tree(summary, 
                       addresses,
@@ -541,6 +539,7 @@ void Nanocube<Summary>::new_insert
             dims.at(current.dim).at(current.index).next,
             copy.first
           );
+
         }
       }
     }
@@ -567,6 +566,8 @@ void Nanocube<Summary>::update_next_pointer
     NCDimNode &current_node = dims.at(dim).at(current);
     if (current_node.next == old_next) {
       current_node.next = new_next;
+      release_node_ref(old_next, dim+1);
+      make_node_ref(new_next, dim+1);
     }
 
     if (current == stop_index) {
