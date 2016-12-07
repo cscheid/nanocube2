@@ -66,6 +66,7 @@ struct Nanocube {
   void update_next_pointer(const vector<int64_t> &addresses, 
                            int dim, int root_index, int stop_index, 
                            int old_next, int new_next);
+  inline bool parent_has_single_child(const vector<int64_t> &addresses, int dim, int node_index, int root_index);
 
   /****************************************************************************/
   // simple accessors

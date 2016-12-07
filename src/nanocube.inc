@@ -466,7 +466,7 @@ void Nanocube<Summary>::new_insert
   
   while(mutant_nodes.size() != 0) {
     NCMutantNode current = mutant_nodes.top();
-    //cout << "current: " << current.first << ", " << current.second << endl;
+    //cout << "current: " << current.index << ", " << current.dim << endl;
     mutant_nodes.pop();
 
     assert(current.dim<= dims.size());
@@ -507,20 +507,38 @@ void Nanocube<Summary>::new_insert
                     mutant_nodes);
       } else {
         NCDimNode &current_node = dims.at(current.dim).at(current.index);
+        cout << "current node: " << current.index << ", " << current.dim;
+
+        // if parent has only one child, then the next is shared, we just
+        // need update
+        bool singleChild = parent_has_single_child(
+          addresses, current.dim, current.index, current.root_index
+        ); 
+
+        // if |child| < 2, it don't need to be copied
+        // this seems redondent as we have similar strategy in update_tree
+        // ??? but we still need this because this node may comes from a insertion
+        //bool fullNode = (current_node.left != -1 && current_node.right != -1);
+
         // if current is a leaf node, or
         // if current->next only has one reference, 
         // then no need to make a copy, just update in place
         if ( (current_node.left == -1 && current_node.right == -1) ||
-             (get_node_ref(current_node.next, current.dim+1) == 1) ) {
+             (get_node_ref(current_node.next, current.dim+1) == 1) ||
+             0 ) {
+          cout << " ~ update " << endl;
           update_tree(summary, 
                       addresses,
                       current.dim+1,
                       current_node.next,
                       mutant_nodes);
         } else {
+          // TODO 
+          // copy: marked by update_tree() (tbd)
+          //       next's ref > 1
           // current->next is shared by multiple nodes, 
           // make a copy and re-point all parents of current nodes to the new_next
-          //cout << "copy the next of node: " << current.first << ", " << current.second << endl;
+          cout << " ~ copy" << endl;
           auto copy = copy_tree(addresses, current_node.next, current.dim+1);
 
           update_tree(summary, 
@@ -528,12 +546,7 @@ void Nanocube<Summary>::new_insert
                       current.dim+1,
                       copy.first,
                       mutant_nodes);
-          // update the 'next' pointer of all parents that used to
-          // point to the same 'old_next'
-          // TODO currently just traverse the tree from the root to current node
-          // maybe we can optimise this in the future
-          //dims.at(current.dim).at(current.index).next = copy.first;
-          // update_next_pointer(dim, root_index, current_index, old_next, new_next);
+
           update_next_pointer( 
             addresses, current.dim, current.root_index, current.index, 
             dims.at(current.dim).at(current.index).next,
@@ -546,6 +559,40 @@ void Nanocube<Summary>::new_insert
   }
 }
 
+template <typename Summary>
+bool Nanocube<Summary>::parent_has_single_child
+(const vector<int64_t> &addresses, int dim, int node_index, int root_index)
+{
+  int depth = 0;
+  int current = root_index;
+  int parent_index = -1;
+  int dimWidth = dims.at(dim).width;
+
+  while(depth <= dimWidth) {
+    if (current == node_index) {
+      break;
+    }
+
+    // refine 
+    depth += 1;
+    int where_to_insert = get_bit(addresses[dim], dimWidth-depth);
+    parent_index = current;
+    NCDimNode &current_node = dims.at(dim).at(current);
+    current = (!where_to_insert) ? current_node.left : current_node.right;
+  }
+
+  if (parent_index == -1) {
+    return true;
+  } else {
+    NCDimNode &parent = dims.at(dim).at(parent_index);
+    // since parent exits, the two children can't be -1 both
+    if (parent.right == -1 || parent.left == -1) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+}
 
 // update the next pointers for nodes along the path from 
 // Nodes[root_index] to Nodes[stop_index]
