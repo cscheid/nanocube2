@@ -34,7 +34,9 @@ struct NCDim {
 struct NCMutantNode {
   //root_index is the root of the tree which contains this node
   int index, dim, root_index; 
-  NCMutantNode(int i, int d, int r): index(i), dim(d), root_index(r) {};
+  bool from_insert; // we need to record if this node need to be mutated because of a insert happened
+  NCMutantNode(int i, int d, int r, int insert): 
+    index(i), dim(d), root_index(r), from_insert(insert) {};
 };
 
 struct PairHasher {

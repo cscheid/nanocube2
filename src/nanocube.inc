@@ -457,7 +457,7 @@ void Nanocube<Summary>::new_insert
   // Get one node from queue, if it is the n-1 dimension, do the update
   // else do the same traversal for node.next
   stack<NCMutantNode> mutant_nodes; // <index, dim>
-  mutant_nodes.push(NCMutantNode(base_root, -1, base_root));
+  mutant_nodes.push(NCMutantNode(base_root, -1, base_root, false));
 
   // summary cache 
   // key: summary index
@@ -525,7 +525,7 @@ void Nanocube<Summary>::new_insert
         // then no need to make a copy, just update in place
         if ( (current_node.left == -1 && current_node.right == -1) ||
              (get_node_ref(current_node.next, current.dim+1) == 1) ||
-             0 ) {
+             (!current.from_insert) ) {
           cout << " ~ update " << endl;
           update_tree(summary, 
                       addresses,
@@ -661,7 +661,7 @@ void Nanocube<Summary>::update_tree
       if (dim < dims.size()-1 && 
           parent_node.right != -1 && 
           parent_node.left != -1) {
-        mutant_nodes.push(NCMutantNode(previous, dim, node_index));
+        mutant_nodes.push(NCMutantNode(previous, dim, node_index, true));
       }
 
       break; // if it's an insert, we can stop now
@@ -675,7 +675,7 @@ void Nanocube<Summary>::update_tree
         (node.left != -1 && node.right != -1) || 
         (depth == dimWidth) ) {
       //cout << "update node: " << current << ", " << dim << endl;
-      mutant_nodes.push(NCMutantNode(current, dim, node_index));
+      mutant_nodes.push(NCMutantNode(current, dim, node_index, false));
 
       if (depth == dimWidth) {
         break;
