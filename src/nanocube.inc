@@ -464,7 +464,6 @@ void Nanocube<Summary>::new_insert
   // value: new summary index
   map<int, int> cache;
 
-  // TODO assumption: insert is always the same for one data point entry
   map<pair<int, int>, pair<int, int> > insert_cache;
   
   while(mutant_nodes.size() != 0) {
@@ -654,7 +653,8 @@ void Nanocube<Summary>::update_tree
     if (current == -1) {
       // insert fresh node here
       //cout << "insert fresh node: " << addresses[dim] << ", " << dim << ", " << depth << endl;
-      //TODO insertion only need to be done once, the other affected nodes should
+
+      //insertion only need to be done once, the other affected nodes should
       // point to this new insertion
       // we can use a cache for insertion
       pair<int, int> insert_result;
