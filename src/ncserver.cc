@@ -110,6 +110,7 @@ void buildTestCubes()
   nc.new_insert(1, {0, 0});
   nc.new_insert(1, {3, 0});
   nc.new_insert(1, {3, 1});
+  nc.new_insert(1, {2, 3});
 
   //nc.insert(1, {0, 0});
   //nc.insert(1, {0, 3});
@@ -175,8 +176,8 @@ int main(int argc, char *argv[]) {
   // build Gaussian Cubes
   //buildCubes();
   buildTestCubes();
-  //nc.dump_internals(true);
   {
+    nc.dump_internals(true);
     ofstream os("nc.dot");
     print_dot(os, nc);
   }

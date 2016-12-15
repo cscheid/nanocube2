@@ -24,7 +24,8 @@ static const char *s_http_port = "8801";
 static struct mg_serve_http_opts s_http_server_opts;
 
 static int qtreeLevel = 10;
-static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
+//static vector<int> schema = {qtreeLevel*2, qtreeLevel*2};
+static vector<int> schema = {3, 3};
 static Naivecube<int> naivecube(schema);
 
 // convert lat,lon to quad tree address
@@ -87,6 +88,18 @@ void buildCubes()
   }
 }
 
+void buildTestCubes()
+{
+  naivecube.insert(1, {0, 0});
+  naivecube.insert(1, {0, 3});
+  naivecube.insert(1, {1, 0});
+  naivecube.insert(1, {2, 0});
+  naivecube.insert(1, {0, 0});
+  naivecube.insert(1, {3, 0});
+  naivecube.insert(1, {3, 1});
+  naivecube.insert(1, {2, 3});
+
+}
 static void handle_query_call(struct mg_connection *c, struct http_message *hm) {
 
   json q = json::parse(string(hm->body.p, hm->body.len));
@@ -135,8 +148,9 @@ int main(int argc, char *argv[]) {
   s_http_server_opts.document_root = "./";
   s_http_server_opts.enable_directory_listing = "no";
 
-  // build Gaussian Cubes
-  buildCubes();
+  // build naive cubes
+  //buildCubes();
+  buildTestCubes();
 
   printf("Starting server on port %s\n", s_http_port);
 
