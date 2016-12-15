@@ -64,7 +64,7 @@ struct Nanocube {
   void update_tree(const Summary &summary, const vector<int64_t> &addresses, 
                    const int dim, const int node_index, 
                    stack<NCMutantNode> &mutant_nodes,
-                   pair<int,int> &insert_cache);
+                   map<pair<int,int>, pair<int,int> > &insert_cache);
   pair<int, int> copy_tree(const vector<int64_t> &addresses, int index, int dim);
   void update_next_pointer(const vector<int64_t> &addresses, 
                            int dim, int root_index, int stop_index, 

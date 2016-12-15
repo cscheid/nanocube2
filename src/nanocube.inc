@@ -465,7 +465,7 @@ void Nanocube<Summary>::new_insert
   map<int, int> cache;
 
   // TODO assumption: insert is always the same for one data point entry
-  pair<int, int> insert_cache = make_pair(-1, -1);
+  map<pair<int, int>, pair<int, int> > insert_cache;
   
   while(mutant_nodes.size() != 0) {
     NCMutantNode current = mutant_nodes.top();
@@ -642,7 +642,7 @@ template <typename Summary>
 void Nanocube<Summary>::update_tree
 (const Summary &summary, const vector<int64_t> &addresses, const int dim, 
  const int node_index, stack<NCMutantNode> &mutant_nodes,
- pair<int, int> &insert_cache)
+ map<pair<int, int>, pair<int, int> > &insert_cache)
 {
   int depth = 0;
   int current = node_index;
@@ -657,10 +657,13 @@ void Nanocube<Summary>::update_tree
       //TODO insertion only need to be done once, the other affected nodes should
       // point to this new insertion
       // we can use a cache for insertion
-      pair<int, int> insert_result = insert_cache;
-      if (insert_result.first == -1) {
+      pair<int, int> insert_result;
+      auto f = insert_cache.find(make_pair(dim, depth));
+      if (f == insert_cache.end()) {
         insert_result = insert_fresh_node(summary, addresses, dim, depth);
-        insert_cache = insert_result;
+        insert_cache[make_pair(dim, depth)] = insert_result;
+      } else {
+        insert_result = f->second;
       }
 
       make_node_ref(insert_result.first, dim);
