@@ -121,7 +121,13 @@ inline void Nanocube<Summary>::release_node_ref(int node_index, int dim)
 template <typename Summary>
 inline int Nanocube<Summary>::get_node_ref(int node_index, int dim)
 {
-  return dims.at(dim).nodes.ref_counts.at(node_index);
+  assert(dims.size() >= dim);
+
+  if ( dim < dims.size() ) {
+    return dims.at(dim).nodes.ref_counts.at(node_index);
+  } else {
+    return summaries.ref_counts.at(node_index);
+  }
 }
 
 template <typename Summary>
