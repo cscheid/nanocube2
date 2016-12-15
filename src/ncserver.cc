@@ -103,21 +103,21 @@ void buildTestCubes()
   //nc.insert(1, {1, 0});
   //
 
-  //nc.new_insert(1, {0, 0});
-  //nc.new_insert(1, {0, 3});
-  //nc.new_insert(1, {1, 0});
-  //nc.new_insert(1, {2, 0});
-  //nc.new_insert(1, {0, 0});
-  //nc.new_insert(1, {3, 0});
-  //nc.new_insert(1, {3, 1});
+  nc.new_insert(1, {0, 0});
+  nc.new_insert(1, {0, 3});
+  nc.new_insert(1, {1, 0});
+  nc.new_insert(1, {2, 0});
+  nc.new_insert(1, {0, 0});
+  nc.new_insert(1, {3, 0});
+  nc.new_insert(1, {3, 1});
 
-  nc.insert(1, {0, 0});
-  nc.insert(1, {0, 3});
-  nc.insert(1, {1, 0});
-  nc.insert(1, {2, 0});
-  nc.insert(1, {0, 0});
-  nc.insert(1, {3, 0});
-  nc.insert(1, {3, 1});
+  //nc.insert(1, {0, 0});
+  //nc.insert(1, {0, 3});
+  //nc.insert(1, {1, 0});
+  //nc.insert(1, {2, 0});
+  //nc.insert(1, {0, 0});
+  //nc.insert(1, {3, 0});
+  //nc.insert(1, {3, 1});
 
 }
 

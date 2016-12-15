@@ -463,6 +463,9 @@ void Nanocube<Summary>::new_insert
   // key: summary index
   // value: new summary index
   map<int, int> cache;
+
+  // TODO assumption: insert is always the same for one data point entry
+  pair<int, int> insert_cache = make_pair(-1, -1);
   
   while(mutant_nodes.size() != 0) {
     NCMutantNode current = mutant_nodes.top();
@@ -504,7 +507,8 @@ void Nanocube<Summary>::new_insert
                     addresses,
                     current.dim+1,
                     base_root,
-                    mutant_nodes);
+                    mutant_nodes,
+                    insert_cache);
       } else {
         NCDimNode &current_node = dims.at(current.dim).at(current.index);
         //cout << "current node: " << current.index << ", " << current.dim;
@@ -531,7 +535,8 @@ void Nanocube<Summary>::new_insert
                       addresses,
                       current.dim+1,
                       current_node.next,
-                      mutant_nodes);
+                      mutant_nodes,
+                      insert_cache);
         } else {
           // copy: marked by update_tree() (tbd)
           //       next's ref > 1
@@ -544,7 +549,8 @@ void Nanocube<Summary>::new_insert
                       addresses,
                       current.dim+1,
                       copy.first,
-                      mutant_nodes);
+                      mutant_nodes,
+                      insert_cache);
 
           update_next_pointer( 
             addresses, current.dim, current.root_index, current.index, 
@@ -635,7 +641,8 @@ void Nanocube<Summary>::update_next_pointer
 template <typename Summary>
 void Nanocube<Summary>::update_tree
 (const Summary &summary, const vector<int64_t> &addresses, const int dim, 
- const int node_index, stack<NCMutantNode> &mutant_nodes)
+ const int node_index, stack<NCMutantNode> &mutant_nodes,
+ pair<int, int> &insert_cache)
 {
   int depth = 0;
   int current = node_index;
@@ -650,8 +657,12 @@ void Nanocube<Summary>::update_tree
       //TODO insertion only need to be done once, the other affected nodes should
       // point to this new insertion
       // we can use a cache for insertion
-      pair<int, int> insert_result = 
-        insert_fresh_node(summary, addresses, dim, depth);
+      pair<int, int> insert_result = insert_cache;
+      if (insert_result.first == -1) {
+        insert_result = insert_fresh_node(summary, addresses, dim, depth);
+        insert_cache = insert_result;
+      }
+
       make_node_ref(insert_result.first, dim);
       int where_to_insert = get_bit(addresses[dim], dimWidth-depth);
       NCDimNode &parent_node = dims.at(dim).at(previous);
