@@ -507,7 +507,7 @@ void Nanocube<Summary>::new_insert
                     mutant_nodes);
       } else {
         NCDimNode &current_node = dims.at(current.dim).at(current.index);
-        cout << "current node: " << current.index << ", " << current.dim;
+        //cout << "current node: " << current.index << ", " << current.dim;
 
         // if parent has only one child, then the next is shared, we just
         // need update
@@ -526,19 +526,18 @@ void Nanocube<Summary>::new_insert
         if ( (current_node.left == -1 && current_node.right == -1) ||
              (get_node_ref(current_node.next, current.dim+1) == 1) ||
              (!current.from_insert) ) {
-          cout << " ~ update " << endl;
+          //cout << " ~ update " << endl;
           update_tree(summary, 
                       addresses,
                       current.dim+1,
                       current_node.next,
                       mutant_nodes);
         } else {
-          // TODO 
           // copy: marked by update_tree() (tbd)
           //       next's ref > 1
           // current->next is shared by multiple nodes, 
           // make a copy and re-point all parents of current nodes to the new_next
-          cout << " ~ copy" << endl;
+          //cout << " ~ copy" << endl;
           auto copy = copy_tree(addresses, current_node.next, current.dim+1);
 
           update_tree(summary, 
@@ -648,6 +647,9 @@ void Nanocube<Summary>::update_tree
     if (current == -1) {
       // insert fresh node here
       //cout << "insert fresh node: " << addresses[dim] << ", " << dim << ", " << depth << endl;
+      //TODO insertion only need to be done once, the other affected nodes should
+      // point to this new insertion
+      // we can use a cache for insertion
       pair<int, int> insert_result = 
         insert_fresh_node(summary, addresses, dim, depth);
       make_node_ref(insert_result.first, dim);
