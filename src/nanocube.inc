@@ -468,8 +468,12 @@ void Nanocube<Summary>::new_insert
   // summary cache 
   // key: summary index
   // value: new summary index
-  map<int, int> cache;
-
+  map<int, int> summary_cache;
+  
+  // insertion cache
+  // insertion is the same for the same dimension
+  // key: insert at <dim, depth>
+  // value: inserted node <index, dim>
   map<pair<int, int>, pair<int, int> > insert_cache;
   
   while(mutant_nodes.size() != 0) {
@@ -486,14 +490,14 @@ void Nanocube<Summary>::new_insert
 
       // if node.next already in cache, then just point node.next to
       // existing new summary
-      auto f = cache.find(node.next);
+      auto f = summary_cache.find(node.next);
       //cout << node.next << endl;
-      if (f == cache.end()) {
+      if (f == summary_cache.end()) {
         const Summary &other_summary = summaries.values.at(node.next);
         Summary new_summary = other_summary + summary;
         int new_ref = summaries.insert(new_summary);
 
-        cache[node.next] = new_ref;
+        summary_cache[node.next] = new_ref;
         this->summaries.make_ref(new_ref);
         this->summaries.release_ref(node.next);
 
@@ -519,16 +523,8 @@ void Nanocube<Summary>::new_insert
         NCDimNode &current_node = dims.at(current.dim).at(current.index);
         //cout << "current node: " << current.index << ", " << current.dim;
 
-        // if |child| < 2, it don't need to be copied
-        // this seems redondent as we have similar strategy in update_tree
-        // ??? but we still need this because this node may comes from a insertion
-        //bool fullNode = (current_node.left != -1 && current_node.right != -1);
-
-        // if current is a leaf node, or
-        // if current->next only has one reference, 
-        // then no need to make a copy, just update in place
-        if ( (current_node.left == -1 && current_node.right == -1) ||
-             (get_node_ref(current_node.next, current.dim+1) == 1) ||
+        if ( (current_node.left == -1 && current_node.right == -1) || // if current is a leaf node, or
+             (get_node_ref(current_node.next, current.dim+1) == 1) || // if current->next only has one reference, 
              (!current.from_insert) ) {
           cout << " ~ update " << endl;
           update_tree(summary, 
