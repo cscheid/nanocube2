@@ -33,10 +33,10 @@ struct NCDim {
 
 struct NCMutantNode {
   //root_index is the root of the tree which contains this node
-  int index, dim, root_index; 
+  int index, dim, root_index, depth; 
   bool from_insert; // we need to record if this node need to be mutated because of a insert happened
-  NCMutantNode(int i, int d, int r, int insert): 
-    index(i), dim(d), root_index(r), from_insert(insert) {};
+  NCMutantNode(int i, int d, int r, int dep, bool insert): 
+    index(i), dim(d), root_index(r), depth(dep), from_insert(insert) {};
 };
 
 struct PairHasher {
@@ -65,11 +65,11 @@ struct Nanocube {
                    const int dim, const int node_index, 
                    stack<NCMutantNode> &mutant_nodes,
                    map<pair<int,int>, pair<int,int> > &insert_cache);
-  pair<int, int> copy_tree(const vector<int64_t> &addresses, int index, int dim);
+  pair<int, int> copy_tree(const vector<int64_t> &addresses, int index, int dim, int depth = 0);
   void update_next_pointer(const vector<int64_t> &addresses, 
                            int dim, int root_index, int stop_index, 
                            int old_next, int new_next);
-  inline bool parent_has_single_child(const vector<int64_t> &addresses, int dim, int node_index, int root_index);
+  inline pair<int, int> find_parent(const vector<int64_t> &addresses, int dim, int node_index, int root_index);
 
   /****************************************************************************/
   // simple accessors

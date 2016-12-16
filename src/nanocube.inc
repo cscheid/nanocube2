@@ -463,7 +463,7 @@ void Nanocube<Summary>::new_insert
   // Get one node from queue, if it is the n-1 dimension, do the update
   // else do the same traversal for node.next
   stack<NCMutantNode> mutant_nodes; // <index, dim>
-  mutant_nodes.push(NCMutantNode(base_root, -1, base_root, false));
+  mutant_nodes.push(NCMutantNode(base_root, -1, base_root, -1, false));
 
   // summary cache 
   // key: summary index
@@ -483,6 +483,7 @@ void Nanocube<Summary>::new_insert
     if(current.dim == dims.size()-1) {
       // if current is n-1 dimension, do the update
       NCDimNode &node = dims.at(current.dim).at(current.index);
+
       // if node.next already in cache, then just point node.next to
       // existing new summary
       auto f = cache.find(node.next);
@@ -517,12 +518,6 @@ void Nanocube<Summary>::new_insert
       } else {
         NCDimNode &current_node = dims.at(current.dim).at(current.index);
         //cout << "current node: " << current.index << ", " << current.dim;
-
-        // if parent has only one child, then the next is shared, we just
-        // need update
-        bool singleChild = parent_has_single_child(
-          addresses, current.dim, current.index, current.root_index
-        ); 
 
         // if |child| < 2, it don't need to be copied
         // this seems redondent as we have similar strategy in update_tree
@@ -570,7 +565,7 @@ void Nanocube<Summary>::new_insert
 }
 
 template <typename Summary>
-bool Nanocube<Summary>::parent_has_single_child
+pair<int, int> Nanocube<Summary>::find_parent
 (const vector<int64_t> &addresses, int dim, int node_index, int root_index)
 {
   int depth = 0;
@@ -591,17 +586,7 @@ bool Nanocube<Summary>::parent_has_single_child
     current = (!where_to_insert) ? current_node.left : current_node.right;
   }
 
-  if (parent_index == -1) {
-    return true;
-  } else {
-    NCDimNode &parent = dims.at(dim).at(parent_index);
-    // since parent exits, the two children can't be -1 both
-    if (parent.right == -1 || parent.left == -1) {
-      return true;
-    } else {
-      return false;
-    }
-  }
+  return make_pair(parent_index, dim);
 }
 
 // update the next pointers for nodes along the path from 
@@ -683,7 +668,7 @@ void Nanocube<Summary>::update_tree
       if (dim < dims.size()-1 && 
           parent_node.right != -1 && 
           parent_node.left != -1) {
-        mutant_nodes.push(NCMutantNode(previous, dim, node_index, true));
+        mutant_nodes.push(NCMutantNode(previous, dim, node_index, depth-1, true));
       }
 
       break; // if it's an insert, we can stop now
@@ -697,7 +682,7 @@ void Nanocube<Summary>::update_tree
         (node.left != -1 && node.right != -1) || 
         (depth == dimWidth) ) {
       //cout << "update node: " << current << ", " << dim << endl;
-      mutant_nodes.push(NCMutantNode(current, dim, node_index, false));
+      mutant_nodes.push(NCMutantNode(current, dim, node_index, depth, false));
 
       if (depth == dimWidth) {
         break;
@@ -717,10 +702,10 @@ void Nanocube<Summary>::update_tree
 
 template <typename Summary>
 pair<int, int> Nanocube<Summary>::copy_tree
-(const vector<int64_t> &addresses, int index, int dim)
+(const vector<int64_t> &addresses, int index, int dim, int start_depth)
 {
   //cout << "copy tree root at: " << index << ", dim: " << dim << endl;
-  int depth = 0;
+  int depth = start_depth;
   int current = index;
   int previous = -1;
   int new_root = -1;
