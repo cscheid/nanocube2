@@ -475,6 +475,13 @@ void Nanocube<Summary>::new_insert
   // key: insert at <dim, depth>
   // value: inserted node <index, dim>
   map<pair<int, int>, pair<int, int> > insert_cache;
+
+  // update cache
+  // for non-root nodes, it should only be updated once
+  // this is important for shared nodes
+  // key: <index, dim>
+  // value: true (just a flag)
+  map<pair<int, int>, bool> update_cache;
   
   while(mutant_nodes.size() != 0) {
     NCMutantNode current = mutant_nodes.top();
@@ -484,80 +491,82 @@ void Nanocube<Summary>::new_insert
     assert(current.dim<= dims.size());
     assert(current.index != -1);
 
-    if(current.dim == dims.size()-1) {
-      // if current is n-1 dimension, do the update
-      NCDimNode &node = dims.at(current.dim).at(current.index);
+    // if this is summary demension, just update
+    if(current.dim == dims.size()) {
+      update_tree(summary, 
+                  addresses,
+                  current.dim,
+                  current.index,
+                  mutant_nodes,
+                  insert_cache);
+    } else if (current.dim == -1) { // base_root
+      update_tree(summary, 
+                  addresses,
+                  current.dim+1,
+                  base_root,
+                  mutant_nodes,
+                  insert_cache);
+    } else {
+      // else keep updating
 
-      // if node.next already in cache, then just point node.next to
-      // existing new summary
-      auto f = summary_cache.find(node.next);
-      //cout << node.next << endl;
-      if (f == summary_cache.end()) {
-        const Summary &other_summary = summaries.values.at(node.next);
-        Summary new_summary = other_summary + summary;
-        int new_ref = summaries.insert(new_summary);
+      //cout << "current node: " << current.index << ", " << current.dim;
+      NCDimNode &current_node = dims.at(current.dim).at(current.index);
 
-        summary_cache[node.next] = new_ref;
-        this->summaries.make_ref(new_ref);
-        this->summaries.release_ref(node.next);
+      ///////////////////////////////////////////////////////////////////////////
+      // first we determine wether we need to copy this current node or not
+      if (get_node_ref(current.index, current.dim) > 1 ) {
+        auto copy = copy_tree(addresses, current.index, current.dim, current.depth);
+        auto parent = find_parent(addresses, current.dim, current.index, current.root_index);
 
-        node.next = new_ref;
-      } else {
-        this->summaries.release_ref(node.next);
-        node.next = f->second;
-        this->summaries.make_ref(node.next);
+        NCDimNode &parent_node = dims.at(parent.second).at(parent.first);
+        (parent_node.left == current.index) ? 
+          parent_node.left = copy.first : parent_node.right = copy.first;
+
+        release_node_ref(current.index, current.dim);
+        make_node_ref(copy.first, copy.second);
+
+        current_node = dims.at(copy.second).at(copy.first);
       }
 
-    } else {
-      // else keep updating for the next dimension
+      ///////////////////////////////////////////////////////////////////////////
+      // then we determine wether we need to copy the next node or not
+      if (current.dim == dims.size() - 1 || // for the last-1 dimension, we always copy next dimension(summary dimmension)
+          //!(current_node.left == -1 && current_node.right == -1) || // non-leaf node
+          (get_node_ref(current_node.next, current.dim+1) > 1) || // current->next is shared
+          current.from_insert ) // from insert
+      {
+        cout << " ~ copy" << endl;
+        auto copy = copy_tree(addresses, current_node.next, current.dim+1);
 
-      // base_root
-      if ( current.dim == -1 ) {
         update_tree(summary, 
                     addresses,
                     current.dim+1,
-                    base_root,
+                    copy.first,
                     mutant_nodes,
                     insert_cache);
-      } else {
-        NCDimNode &current_node = dims.at(current.dim).at(current.index);
-        //cout << "current node: " << current.index << ", " << current.dim;
 
-        if ( (current_node.left == -1 && current_node.right == -1) || // if current is a leaf node, or
-             (get_node_ref(current_node.next, current.dim+1) == 1) || // if current->next only has one reference, 
-             (!current.from_insert) ) {
-          cout << " ~ update " << endl;
+        update_next_pointer( 
+          addresses, current.dim, current.root_index, current.index, 
+          dims.at(current.dim).at(current.index).next,
+          copy.first
+        );
+
+      } else {
+        cout << " ~ update " << endl;
+        auto f = update_cache.find(make_pair(current.index, current.dim));
+        if (f == update_cache.end()) {
           update_tree(summary, 
                       addresses,
                       current.dim+1,
                       current_node.next,
                       mutant_nodes,
                       insert_cache);
-        } else {
-          // copy: marked by update_tree() (tbd)
-          //       next's ref > 1
-          // current->next is shared by multiple nodes, 
-          // make a copy and re-point all parents of current nodes to the new_next
-          cout << " ~ copy" << endl;
-          auto copy = copy_tree(addresses, current_node.next, current.dim+1);
-
-          update_tree(summary, 
-                      addresses,
-                      current.dim+1,
-                      copy.first,
-                      mutant_nodes,
-                      insert_cache);
-
-          update_next_pointer( 
-            addresses, current.dim, current.root_index, current.index, 
-            dims.at(current.dim).at(current.index).next,
-            copy.first
-          );
-
+          update_cache[make_pair(current.index, current.dim)] = true;
         }
       }
-    }
-  }
+
+    } // end of keep updating
+  } // end of while loop
 }
 
 template <typename Summary>
@@ -630,6 +639,13 @@ void Nanocube<Summary>::update_tree
  const int node_index, stack<NCMutantNode> &mutant_nodes,
  map<pair<int, int>, pair<int, int> > &insert_cache)
 {
+  assert(dim <= this->dims.size());
+
+  if (dim == this->dims.size()) {
+    summaries.values.at(node_index) += summary;
+    return;
+  }
+
   int depth = 0;
   int current = node_index;
   int previous = -1;
@@ -661,8 +677,7 @@ void Nanocube<Summary>::update_tree
       // after insertion, if the parent node is a full node now, put it in
       // mutant_nodes because it should be mutated
       // don't need to include it if this is the last dimension
-      if (dim < dims.size()-1 && 
-          parent_node.right != -1 && 
+      if (parent_node.right != -1 && 
           parent_node.left != -1) {
         mutant_nodes.push(NCMutantNode(previous, dim, node_index, depth-1, true));
       }
@@ -674,7 +689,7 @@ void Nanocube<Summary>::update_tree
 
     // update and insert at the n-1 dimension should mutate the whole tree
     // the nodes point to the same summary need to point to the new summary
-    if( (dim == dims.size()-1) ||  // TODO find better solution
+    if( //(dim == dims.size()-1) ||  // TODO find better solution
         (node.left != -1 && node.right != -1) || 
         (depth == dimWidth) ) {
       //cout << "update node: " << current << ", " << dim << endl;
@@ -701,6 +716,13 @@ pair<int, int> Nanocube<Summary>::copy_tree
 (const vector<int64_t> &addresses, int index, int dim, int start_depth)
 {
   //cout << "copy tree root at: " << index << ", dim: " << dim << endl;
+
+  if(dim == this->dims.size()) {
+    const Summary &summary = summaries.values.at(index);
+    int new_ref = summaries.insert(summary);
+    return make_pair(new_ref, dim);
+  }
+
   int depth = start_depth;
   int current = index;
   int previous = -1;
