@@ -531,12 +531,13 @@ void Nanocube<Summary>::new_insert
       ///////////////////////////////////////////////////////////////////////////
       // then we determine wether we need to copy the next node or not
       if (current.dim == dims.size() - 1 || // for the last-1 dimension, we always copy next dimension(summary dimmension)
-          //!(current_node.left == -1 && current_node.right == -1) || // non-leaf node
-          (get_node_ref(current_node.next, current.dim+1) > 1) || // current->next is shared
+          ( !(current_node.left == -1 && current_node.right == -1) && // non-leaf node
+          (get_node_ref(current_node.next, current.dim+1) > 1) ) || // current->next is shared
           current.from_insert ) // from insert
       {
         cout << " ~ copy" << endl;
         auto copy = copy_tree(addresses, current_node.next, current.dim+1);
+        cout << " copied tree: " << copy.first << endl;
 
         update_tree(summary, 
                     addresses,
