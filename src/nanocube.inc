@@ -485,7 +485,7 @@ void Nanocube<Summary>::new_insert
   
   while(mutant_nodes.size() != 0) {
     NCMutantNode current = mutant_nodes.top();
-    cout << "current: " << current.index << ", " << current.dim << endl;
+    //cout << "current: " << current.index << ", " << current.dim << endl;
     mutant_nodes.pop();
 
     assert(current.dim<= dims.size());
@@ -518,14 +518,21 @@ void Nanocube<Summary>::new_insert
         auto copy = copy_tree(addresses, current.index, current.dim, current.depth);
         auto parent = find_parent(addresses, current.dim, current.index, current.root_index);
 
-        NCDimNode &parent_node = dims.at(parent.second).at(parent.first);
-        (parent_node.left == current.index) ? 
-          parent_node.left = copy.first : parent_node.right = copy.first;
+        // TODO make sure this is corrent
+        // parent.first == -1 means current ndoe is root, in which case we don't
+        // need to copy
+        if (parent.first != -1) { 
+          NCDimNode &parent_node = dims.at(parent.second).at(parent.first);
 
-        release_node_ref(current.index, current.dim);
-        make_node_ref(copy.first, copy.second);
+          (parent_node.left == current.index) ? 
+            parent_node.left = copy.first : parent_node.right = copy.first;
 
-        current_node = dims.at(copy.second).at(copy.first);
+          release_node_ref(current.index, current.dim);
+          make_node_ref(copy.first, copy.second);
+
+          current_node = dims.at(copy.second).at(copy.first);
+        }
+
       }
 
       ///////////////////////////////////////////////////////////////////////////
@@ -535,9 +542,8 @@ void Nanocube<Summary>::new_insert
           (get_node_ref(current_node.next, current.dim+1) > 1) ) || // current->next is shared
           current.from_insert ) // from insert
       {
-        cout << " ~ copy" << endl;
+        //cout << " ~ copy" << endl;
         auto copy = copy_tree(addresses, current_node.next, current.dim+1);
-        cout << " copied tree: " << copy.first << endl;
 
         update_tree(summary, 
                     addresses,
@@ -553,7 +559,7 @@ void Nanocube<Summary>::new_insert
         );
 
       } else {
-        cout << " ~ update " << endl;
+        //cout << " ~ update " << endl;
         auto f = update_cache.find(make_pair(current.index, current.dim));
         if (f == update_cache.end()) {
           update_tree(summary, 
