@@ -485,7 +485,7 @@ void Nanocube<Summary>::new_insert
   
   while(mutant_nodes.size() != 0) {
     NCMutantNode current = mutant_nodes.top();
-    //cout << "current: " << current.index << ", " << current.dim << endl;
+    cout << "current: " << current.index << ", " << current.dim << endl;
     mutant_nodes.pop();
 
     assert(current.dim<= dims.size());
@@ -510,7 +510,9 @@ void Nanocube<Summary>::new_insert
       // else keep updating
 
       //cout << "current node: " << current.index << ", " << current.dim;
+      //cout << ", " << current.depth << endl;
       NCDimNode &current_node = dims.at(current.dim).at(current.index);
+      //cout << "current node next: " << current_node.next << endl;
 
       ///////////////////////////////////////////////////////////////////////////
       // first we determine wether we need to copy this current node or not
@@ -532,7 +534,10 @@ void Nanocube<Summary>::new_insert
 
           current_node = dims.at(copy.second).at(copy.first);
         }
+        //cout << " ~ copy current" << endl;
 
+      } else {
+        //cout << " ~ update current" << endl;
       }
 
       ///////////////////////////////////////////////////////////////////////////
@@ -542,7 +547,7 @@ void Nanocube<Summary>::new_insert
           (get_node_ref(current_node.next, current.dim+1) > 1) ) || // current->next is shared
           current.from_insert ) // from insert
       {
-        //cout << " ~ copy" << endl;
+        //cout << " ~ copy next" << endl;
         auto copy = copy_tree(addresses, current_node.next, current.dim+1);
 
         update_tree(summary, 
@@ -559,7 +564,7 @@ void Nanocube<Summary>::new_insert
         );
 
       } else {
-        //cout << " ~ update " << endl;
+        //cout << " ~ update next" << endl;
         auto f = update_cache.find(make_pair(current.index, current.dim));
         if (f == update_cache.end()) {
           update_tree(summary, 
@@ -774,6 +779,9 @@ pair<int, int> Nanocube<Summary>::copy_tree
   }
   //cout << endl;
 
+  if (new_root == -1) {
+    cout << "copied wrong" << endl;
+  }
   return make_pair(new_root, dim);
 }
 
