@@ -1,0 +1,6 @@
+[package]
+name = "nanocube2"
+version = "0.1.0"
+authors = ["Carlos Scheidegger <cscheid@cs.arizona.edu>"]
+
+[dependencies]
