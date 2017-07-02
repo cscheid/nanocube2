@@ -5,9 +5,9 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct RefCountedVec<T> {
-    values: Vec<T>,
-    ref_counts: Vec<usize>,
-    free_list: Vec<usize>
+    pub values: Vec<T>,
+    pub ref_counts: Vec<usize>,
+    pub free_list: Vec<usize>
 }
 
 fn sorted_array_has_no_duplicates(v: &Vec<usize>) -> bool {
@@ -31,6 +31,9 @@ impl <T> RefCountedVec<T> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        return self.values.len();
+    }
 
     pub fn at(&self, index: usize) -> &T {
         &self.values[index]
@@ -118,4 +121,28 @@ impl <T> RefCountedVec<T> {
         assert!(self.free_list.len() == 0);
         result
     }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+pub fn smoke_test()
+{
+    let mut v = RefCountedVec::<i32>::new();
+    v.insert(1);
+    v.insert(2);
+    v.make_ref(0);
+    v.make_ref(1);
+    v.make_ref(0);
+    v.release_ref(0);
+    println!("This is our refcountedvec: {:?}", v);
+    v.release_ref(0);
+    println!("This is our refcountedvec: {:?}", v);
+
+    println!("Value: {}", v.at(0));
+    {
+        *v.at_mut(0) = 3;
+    }
+    println!("Value: {}", v.at(0));
+    println!("Compaction transposition map: {:?}", v.compact());
+    println!("This is our refcountedvec: {:?}", v);
 }
