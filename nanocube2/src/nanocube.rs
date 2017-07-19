@@ -1,5 +1,7 @@
 use ref_counted_vec::RefCountedVec;
-use std::ops::Add;
+use std;
+
+//////////////////////////////////////////////////////////////////////////////
 
 fn get_bit(value: usize, bit: usize) -> bool
 {
@@ -49,7 +51,7 @@ pub struct Nanocube<Summary> {
 
 // we're not using add here because I can't make the trait implementations
 // and declarations work like I want them to.
-trait Monoid<RHS = Self> {
+pub trait Monoid<RHS = Self> {
     fn mapply(&self, rhs: &RHS) -> Self;
 }
 
@@ -83,6 +85,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     pub fn release_node_ref(&mut self, node_index: Option<usize>, dim: usize) {
         if let Some(node_index) = node_index {
             let mut stack = Vec::<(usize, usize)>::new();
+            stack.push((node_index, dim));
             while stack.len() > 0 {
                 let (node_index, dim) = stack.pop().expect("internal error");
                 if dim == self.dims.len() {
@@ -258,6 +261,20 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         }
     }
 
+    // (&mut self,
+    //               summary: Summary, addresses: &Vec<usize>, dim: usize, bit: usize,
+    //               current_node_index: Option<usize>) ->
+    //     (Option<usize>, Option<usize>)
+
+    pub fn add(&mut self,
+               summary: Summary,
+               addresses: &Vec<usize>)
+    {
+        let base = self.base_root;
+        let (result_base, _) = self.insert(summary, addresses, 0, 0, base);
+        self.base_root = result_base;
+    }
+    
     // pub fn compact(&mut self) {}
 
     // pub fn content_compact(&mut self) {}
@@ -290,8 +307,66 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     }
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
+fn node_id(i: usize, dim: usize) -> String {
+    format!("\"{}_{}\"", i, dim)
+}
+
+pub fn print_dot_ncdim<W: std::io::Write>(w: &mut W, dim: &NCDim, d: usize, draw_next: bool) -> Result<(), std::io::Error>
+{
+    writeln!(w, " subgraph cluster_{} {{", d).expect("Can't write to w");
+    writeln!(w, " label=\"Dim. {}\";", d).expect("Can't write to w");
+    for i in 0..dim.nodes.values.len() {
+        let s = match dim.nodes.values[i].next {
+            None => format!("{}", "None"),
+            Some(s) => format!("{}", s)
+        };
+        writeln!(w, "  {} [label=\"{}:{}\"];", node_id(i, d), i, s).expect("Can't write to w");;
+    }
+    writeln!(w, "}}").expect("Can't write to w");;
+    for i in 0..dim.nodes.values.len() {
+        let node = &dim.nodes.values[i];
+        if let Some(left) = node.left {
+            writeln!(w, "  {} -> {} [label=\"0\"];", node_id(i, d), node_id(left, d)).expect("Can't write to w");;
+        }
+        if let Some(right) = node.right {
+            writeln!(w, "  {} -> {} [label=\"1\"];", node_id(i, d), node_id(right, d)).expect("Can't write to w");;
+        }
+    }
+    Ok(())
+}
+
+pub fn print_dot<W: std::io::Write, Summary>(w: &mut W, nc: &Nanocube<Summary>) -> Result<(), std::io::Error>
+{
+    writeln!(w, "digraph G {{").expect("Can't write to w");
+    writeln!(w, "    splines=line;").expect("Can't write to w");;
+    for i in 0..nc.dims.len() {
+        print_dot_ncdim(w, &nc.dims[i], i, i < (nc.dims.len() - 1)).expect("Can't write to w");
+    }
+    writeln!(w, "}}").expect("Can't write to w");
+    Ok(())
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
+pub fn write_to_disk<Summary>(name: &str, nc: &Nanocube<Summary>) -> Result<(), std::io::Error>
+{
+    let mut f = std::fs::File::create(name)
+        .expect("cannot create file");
+    print_dot(&mut f, &nc)
+}
+
 pub fn smoke_test()
 {
-    let nc = Nanocube::<usize>::new(vec![2]);
+    let mut nc = Nanocube::<usize>::new(vec![2, 2]);
+    nc.report_size();
+    write_to_disk("out0.dot", &nc).expect("Couldn't write");
+    nc.add(1, &vec![0, 0]);
+    write_to_disk("out1.dot", &nc).expect("Couldn't write");
+    nc.add(1, &vec![3, 3]);
+    write_to_disk("out2.dot", &nc).expect("Couldn't write");
+
+    
     println!("{:?}", nc.base_root);
 }
