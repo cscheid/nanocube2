@@ -1,5 +1,6 @@
 use ref_counted_vec::RefCountedVec;
 use std;
+use std::io::Write;
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -246,7 +247,17 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                   summary: Summary, addresses: &Vec<usize>, dim: usize, bit: usize,
                   current_node_index: Option<usize>) ->
         (Option<usize>, Option<usize>, bool)
+    // the three return values are:
+    // - the index of the inserted node in dims[dim];
+    // - the index of the summary in self.summaries;
+    // - whether or not the insertion was of a fresh node, in which case a merge of that
+    //   subpath is necessary
     {
+        if dim == self.dims.len() {
+            // we bottomed out; just insert a summary and be done.
+            let new_ref = self.summaries.insert(summary);
+            return (Some(new_ref), Some(new_ref), true);
+        }
         match current_node_index {
             None => {
                 println!("inserting fresh node {:?} {} {} at {:?}",
@@ -266,7 +277,6 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                     let result = self.insert(summary, addresses, dim, bit+1, refinement_node);
                     let (new_node, new_summary) = if result.2 {
                         // this is the result of a fresh insert. It needs a merge
-                        // self.make_node_ref(result.0, dim);
                         let (fresh_left_node, fresh_right_node) =
                             if where_to_insert {
                                 (None, result.0)
@@ -426,11 +436,24 @@ pub fn print_dot<W: std::io::Write, Summary>(w: &mut W, nc: &Nanocube<Summary>) 
 
 //////////////////////////////////////////////////////////////////////////////
 
-pub fn write_to_disk<Summary>(name: &str, nc: &Nanocube<Summary>) -> Result<(), std::io::Error>
+pub fn write_dot_to_disk<Summary>(name: &str, nc: &Nanocube<Summary>) -> Result<(), std::io::Error>
 {
     let mut f = std::fs::File::create(name)
         .expect("cannot create file");
     print_dot(&mut f, &nc)
+}
+
+pub fn write_txt_to_disk<Summary: std::fmt::Debug>(name: &str, nc: &Nanocube<Summary>) -> Result<(), std::io::Error>
+{
+    let mut f = std::fs::File::create(name)
+        .expect("cannot create file");
+    for ncdim in nc.dims.iter() {
+        writeln!(f, "--------");
+        for node in ncdim.nodes.values.iter() {
+            writeln!(f, "{:?} {:?} {:?}", node.left, node.right, node.next);
+        }
+    }
+    Ok(())
 }
 
 pub fn smoke_test()
@@ -438,22 +461,22 @@ pub fn smoke_test()
     // {
     //     let mut nc = Nanocube::<usize>::new(vec![2, 2]);
     //     nc.add(1, &vec![0, 0]);
-    //     write_to_disk("out/out01.dot", &nc).expect("Couldn't write");
+    //     write_dot_to_disk("out/out01.dot", &nc).expect("Couldn't write");
     //     nc.add(1, &vec![3, 3]);
-    //     write_to_disk("out/out02.dot", &nc).expect("Couldn't write");
+    //     write_dot_to_disk("out/out02.dot", &nc).expect("Couldn't write");
     // }
     // {
     //     let mut nc = Nanocube::<usize>::new(vec![2, 2]);
     //     nc.add(1, &vec![0, 0]);
-    //     write_to_disk("out/out11.dot", &nc).expect("Couldn't write");
+    //     write_dot_to_disk("out/out11.dot", &nc).expect("Couldn't write");
     //     nc.add(1, &vec![1, 3]);
-    //     write_to_disk("out/out12.dot", &nc).expect("Couldn't write");
+    //     write_dot_to_disk("out/out12.dot", &nc).expect("Couldn't write");
     // }
     {
         let mut nc = Nanocube::<usize>::new(vec![2, 2]);
         nc.add(1, &vec![0, 0]);
-        write_to_disk("out/out21.dot", &nc).expect("Couldn't write");
+        write_dot_to_disk("out/out21.dot", &nc).expect("Couldn't write");
         nc.add(1, &vec![0, 0]);
-        write_to_disk("out/out22.dot", &nc).expect("Couldn't write");
+        write_dot_to_disk("out/out22.dot", &nc).expect("Couldn't write");
     }
 }
