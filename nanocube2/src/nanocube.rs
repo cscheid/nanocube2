@@ -8,7 +8,7 @@ fn get_bit(value: usize, bit: usize) -> bool
     (value >> bit) & 1 != 0
 }
 
-#[derive (Copy, Clone)]
+#[derive (Copy, Debug, Clone)]
 pub struct NCDimNode {
     left: Option<usize>,
     right: Option<usize>,
@@ -59,7 +59,6 @@ impl Monoid for usize {
     fn mapply(&self, rhs: &usize) -> usize { self + rhs }
 }
 
-
 impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
 
     pub fn new(widths: Vec<usize>) -> Nanocube<Summary> {
@@ -83,9 +82,14 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     }
 
     pub fn release_node_ref(&mut self, node_index: Option<usize>, dim: usize) {
+        println!("release_node_ref {:?} {}", node_index, dim);
         if let Some(node_index) = node_index {
             let mut stack = Vec::<(usize, usize)>::new();
-            stack.push((node_index, dim));
+            fn push(s: &mut Vec<(usize, usize)>, v: (usize, usize)) {
+                println!("pushing {:?}", v);
+                s.push(v);
+            }
+            push(&mut stack, (node_index, dim)); 
             while stack.len() > 0 {
                 let (node_index, dim) = stack.pop().expect("internal error");
                 if dim == self.dims.len() {
@@ -93,15 +97,16 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 } else {
                     let new_ref_count = self.dims[dim].nodes.release_ref(node_index);
                     if new_ref_count == 0 {
+                        println!("Node {},{} is free", dim, node_index);
                         let mut node = self.dims[dim].at_mut(node_index);
                         if let Some(left) = node.left {
-                            stack.push((left, dim));
+                            push(&mut stack, (left, dim));
                         }
                         if let Some(right) = node.right {
-                            stack.push((right, dim));
+                            push(&mut stack, (right, dim));
                         }
                         if let Some(next) = node.next {
-                            stack.push((next, dim+1));
+                            push(&mut stack, (next, dim+1));
                         }
                         node.left = None;
                         node.right = None;
@@ -118,11 +123,42 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         assert!(self.dims.len() == addresses.len());
         if dim == self.dims.len() {
             let new_ref = self.summaries.insert(summary);
+            println!("insert_fresh_node summary {:?} {} {}: {:?}",
+                     addresses, dim, bit, Some(new_ref));
             (Some(new_ref), Some(new_ref))
         } else {
             let width = self.dims[dim].width;
-            if bit == width {
+            if bit != width {
+                let where_to_insert = get_bit(addresses[dim], width-bit-1);
+                let recursion_result = self.insert_fresh_node(summary, addresses, dim, bit+1);
+                println!("returned from     refinement recurse middle {:?} {} {}: {:?}",
+                         addresses, dim, bit, recursion_result);
+                let left_recursion_result = recursion_result.0.expect("fresh node should have returned Some");
+                let next = self.dims[dim].at(left_recursion_result).next;
+                let new_refinement_node = if where_to_insert {
+                    NCDimNode {
+                        left: None,
+                        right: recursion_result.0,
+                        next: next
+                    }
+                } else {
+                    NCDimNode {
+                        left: recursion_result.0,
+                        right: None,
+                        next: next
+                    }
+                };
+                self.make_node_ref(next, dim+1);
+                self.make_node_ref(recursion_result.0, dim);
+                let new_index = self.dims[dim].nodes.insert(new_refinement_node);
+                println!("inserted node {:?} at {},{}", new_refinement_node, dim, new_index);
+                println!("insert_fresh_node refinement         middle {:?} {} {}: {:?}",
+                         addresses, dim, bit, (Some(new_index), recursion_result.1));
+                return (Some(new_index), recursion_result.1);
+            } else {
                 let next_dim_result = self.insert_fresh_node(summary, addresses, dim+1, 0);
+                println!("returned from     refinement recurse bottom {:?} {} {}: {:?}",
+                         addresses, dim, bit, next_dim_result);
                 let new_node_at_current_dim = NCDimNode {
                     left: None,
                     right: None,
@@ -130,21 +166,10 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 };
                 self.make_node_ref(next_dim_result.0, dim+1);
                 let new_index = self.dims[dim].nodes.insert(new_node_at_current_dim);
+                println!("inserted node {:?} at {},{}", new_node_at_current_dim, dim, new_index);
+                println!("insert_fresh_node refinement         bottom {:?} {} {}: {:?}",
+                         addresses, dim, bit, (Some(new_index), next_dim_result.1));
                 return (Some(new_index), next_dim_result.1);
-            } else {
-                let where_to_insert = get_bit(addresses[dim], width-bit-1);
-                let recursion_result = self.insert_fresh_node(summary, addresses, dim, bit+1);
-                let left_recursion_result = recursion_result.0.expect("fresh node should have returned Some");
-                let next = self.dims[dim].at(left_recursion_result).next;
-                let new_refinement_node = NCDimNode {
-                    left:  if !where_to_insert { recursion_result.0 } else { None },
-                    right: if  where_to_insert { recursion_result.0 } else { None },
-                    next:  next
-                };
-                self.make_node_ref(next, dim+1);
-                self.make_node_ref(recursion_result.0, dim);
-                let new_index = self.dims[dim].nodes.insert(new_refinement_node);
-                return (Some(new_index), recursion_result.1);
             }
         }
     }
@@ -156,10 +181,14 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     pub fn merge(&mut self,
                  node_1: Option<usize>, node_2: Option<usize>,
                  dim: usize) -> (Option<usize>, Option<usize>) {
+        println!("Will merge {:?}, {:?} in dim {}",
+                 node_1, node_2, dim);
         if let None = node_1 {
+            println!("  trivial merge: {:?}", node_2);
             return (node_2, self.get_summary_index(node_2, dim));
         }
         if let None = node_2 {
+            println!("  trivial merge: {:?}", node_1);
             return (node_1, self.get_summary_index(node_1, dim));
         }
         let node_1 = node_1.expect("internal error");
@@ -171,14 +200,19 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 node_1_summary.mapply(node_2_summary)
             };
             let new_summary_index = self.summaries.insert(new_summary);
+            println!("  summary insert: {:?}", new_summary_index);
             return (Some(new_summary_index), Some(new_summary_index));
         }
+        println!("  nontrivial merge");
         let node_1_node = self.get_node(dim, node_1);
         let node_2_node = self.get_node(dim, node_2);
+        println!("  left side of nontrivial merge");
         let left_merge = self.merge(node_1_node.left, node_2_node.left, dim);
+        println!("  right side of nontrivial merge");
         let right_merge = self.merge(node_1_node.right, node_2_node.right, dim);
         let node_1_index = left_merge.0;
         let node_2_index = right_merge.0;
+        println!("  next side of nontrivial merge");
         let next_merge = match (node_1_index, node_2_index) {
             (None, None) =>
                 self.merge(node_1_node.next, node_2_node.next, dim+1),
@@ -201,17 +235,25 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         };
         self.make_node_ref(left_merge.0, dim);
         self.make_node_ref(right_merge.0, dim);
-        self.make_node_ref(next_merge.0, dim);
-        (Some(self.dims[dim].nodes.insert(new_node)), next_merge.1)
+        self.make_node_ref(next_merge.0, dim+1);
+        let new_index = self.dims[dim].nodes.insert(new_node);
+        println!("  Inserted merge node {:?} at {},{}",
+                 new_node, dim, new_index);
+        (Some(new_index), next_merge.1)
     }
 
     pub fn insert(&mut self,
                   summary: Summary, addresses: &Vec<usize>, dim: usize, bit: usize,
                   current_node_index: Option<usize>) ->
-        (Option<usize>, Option<usize>)
+        (Option<usize>, Option<usize>, bool)
     {
         match current_node_index {
-            None => self.insert_fresh_node(summary, addresses, dim, bit),
+            None => {
+                println!("inserting fresh node {:?} {} {} at {:?}",
+                         addresses, dim, bit, current_node_index);
+                let fresh_insert = self.insert_fresh_node(summary, addresses, dim, bit);
+                (fresh_insert.0, fresh_insert.1, true)
+            },
             Some(current_node_index) => {
                 let width = self.dims[dim].width;
                 let current_node = self.get_node(dim, current_node_index);
@@ -222,31 +264,57 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                     let refinement_node =
                         if where_to_insert { current_node.right } else { current_node.left };
                     let result = self.insert(summary, addresses, dim, bit+1, refinement_node);
-                    self.make_node_ref(result.0, dim);
-                    let (fresh_left_node, fresh_right_node) =
+                    let (new_node, new_summary) = if result.2 {
+                        // this is the result of a fresh insert. It needs a merge
+                        // self.make_node_ref(result.0, dim);
+                        let (fresh_left_node, fresh_right_node) =
+                            if where_to_insert {
+                                (None, result.0)
+                            } else {
+                                (result.0, None)
+                            };
+                        println!("Current node: {:?} {},{}", current_node, dim, current_node_index);
+                        let merged_left  = self.merge(current_node.left, fresh_left_node, dim);
+                        println!("Merged left: {:?}", merged_left);
+                        let merged_right = self.merge(current_node.right, fresh_right_node, dim);
+                        println!("Merged right: {:?}", merged_right);
+                        
+                        // FIXME it might be better to have at() accept Option<usize> instead
+                        // and lift everything up to work with Option<>s
+                        let merged_left_next  = self.get_node(dim, merged_left .0.expect("Foo")).next;
+                        let merged_right_next = self.get_node(dim, merged_right.0.expect("Foo")).next;
+                        let merged_next  = self.merge(merged_left_next,
+                                                      merged_right_next,
+                                                      dim+1);
+                        (NCDimNode {
+                            left: merged_left.0,
+                            right: merged_right.0,
+                            next: merged_next.0
+                        }, merged_next.1)
+                    } else {
+                        // this is the result of a merge or spine copy. No merge needed.
                         if where_to_insert {
-                            (None, result.0)
+                            (NCDimNode {
+                                left: current_node.left,
+                                right: result.0,
+                                next: self.get_node(dim, result.0.expect("Foo")).next
+                            }, result.1)
                         } else {
-                            (result.0, None)
-                        };
-                    let merged_left  = self.merge(current_node.left, fresh_left_node, dim);
-                    let merged_right = self.merge(current_node.right, fresh_right_node, dim);
-                    
-                    // FIXME it might be better to have at() accept Option<usize> instead
-                    // and lift everything up to work with Option<>s
-                    let merged_left_next  = self.get_node(dim, merged_left .0.expect("Foo")).next;
-                    let merged_right_next = self.get_node(dim, merged_right.0.expect("Foo")).next;
-                    let merged_next  = self.merge(merged_left_next,
-                                                  merged_right_next,
-                                                  dim+1);
-                    self.release_node_ref(result.0, dim);
-                    let new_node = NCDimNode {
-                        left: merged_left.0,
-                        right: merged_right.0,
-                        next: merged_next.0
+                            (NCDimNode {
+                                left: result.0,
+                                right: current_node.right,
+                                next: self.get_node(dim, result.0.expect("Foo")).next
+                            }, result.1)
+                        }
                     };
+                    self.make_node_ref(new_node.left, dim);
+                    self.make_node_ref(new_node.right, dim);
+                    self.make_node_ref(new_node.next, dim+1);
                     let new_index = self.dims[dim].nodes.insert(new_node);
-                    return (Some(new_index), merged_next.1);
+                    // self.release_node_ref(result.0, dim);
+                    println!("insert merge node {:?} at {},{}",
+                             new_node, dim, new_index);
+                    return (Some(new_index), new_summary, false);
                 } else {
                     let result = self.insert(summary, addresses, dim+1, 0, current_node.next);
                     let new_node = NCDimNode {
@@ -254,30 +322,26 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                         right: None,
                         next: result.0
                     };
+                    self.make_node_ref(result.0, dim+1);
                     let new_index = self.dims[dim].nodes.insert(new_node);
-                    return (Some(new_index), result.1);
+                    return (Some(new_index), result.1, false);
                 }
             }
         }
     }
-
-    // (&mut self,
-    //               summary: Summary, addresses: &Vec<usize>, dim: usize, bit: usize,
-    //               current_node_index: Option<usize>) ->
-    //     (Option<usize>, Option<usize>)
 
     pub fn add(&mut self,
                summary: Summary,
                addresses: &Vec<usize>)
     {
         let base = self.base_root;
-        let (result_base, _) = self.insert(summary, addresses, 0, 0, base);
+        let (result_base, _, _) = self.insert(summary, addresses, 0, 0, base);
+        self.make_node_ref(result_base, 0);
+        println!("Will release.");
+        self.release_node_ref(base, 0);
+        println!("-----Done.");
         self.base_root = result_base;
     }
-    
-    // pub fn compact(&mut self) {}
-
-    // pub fn content_compact(&mut self) {}
 
     pub fn get_summary_index(&self, node_index: Option<usize>, dim: usize) -> Option<usize> {
         let mut current_node_index = node_index;
@@ -305,6 +369,15 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         }
         println!("");
     }
+
+    pub fn debug_print(&self) {
+        for ncdim in self.dims.iter() {
+            println!("--------");
+            for node in ncdim.nodes.values.iter() {
+                println!("{:?} {:?} {:?}", node.left, node.right, node.next);
+            }
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -318,11 +391,14 @@ pub fn print_dot_ncdim<W: std::io::Write>(w: &mut W, dim: &NCDim, d: usize, draw
     writeln!(w, " subgraph cluster_{} {{", d).expect("Can't write to w");
     writeln!(w, " label=\"Dim. {}\";", d).expect("Can't write to w");
     for i in 0..dim.nodes.values.len() {
-        let s = match dim.nodes.values[i].next {
+        if dim.nodes.ref_counts[i] == 0 {
+            continue;
+        }
+        let next = match dim.nodes.values[i].next {
             None => format!("{}", "None"),
             Some(s) => format!("{}", s)
         };
-        writeln!(w, "  {} [label=\"{}:{}\"];", node_id(i, d), i, s).expect("Can't write to w");;
+        writeln!(w, "  {} [label=\"{}:{} [{}]\"];", node_id(i, d), i, next, dim.nodes.ref_counts[i]).expect("Can't write to w");;
     }
     writeln!(w, "}}").expect("Can't write to w");;
     for i in 0..dim.nodes.values.len() {
@@ -359,14 +435,25 @@ pub fn write_to_disk<Summary>(name: &str, nc: &Nanocube<Summary>) -> Result<(), 
 
 pub fn smoke_test()
 {
-    let mut nc = Nanocube::<usize>::new(vec![2, 2]);
-    nc.report_size();
-    write_to_disk("out0.dot", &nc).expect("Couldn't write");
-    nc.add(1, &vec![0, 0]);
-    write_to_disk("out1.dot", &nc).expect("Couldn't write");
-    nc.add(1, &vec![3, 3]);
-    write_to_disk("out2.dot", &nc).expect("Couldn't write");
-
-    
-    println!("{:?}", nc.base_root);
+    // {
+    //     let mut nc = Nanocube::<usize>::new(vec![2, 2]);
+    //     nc.add(1, &vec![0, 0]);
+    //     write_to_disk("out/out01.dot", &nc).expect("Couldn't write");
+    //     nc.add(1, &vec![3, 3]);
+    //     write_to_disk("out/out02.dot", &nc).expect("Couldn't write");
+    // }
+    // {
+    //     let mut nc = Nanocube::<usize>::new(vec![2, 2]);
+    //     nc.add(1, &vec![0, 0]);
+    //     write_to_disk("out/out11.dot", &nc).expect("Couldn't write");
+    //     nc.add(1, &vec![1, 3]);
+    //     write_to_disk("out/out12.dot", &nc).expect("Couldn't write");
+    // }
+    {
+        let mut nc = Nanocube::<usize>::new(vec![2, 2]);
+        nc.add(1, &vec![0, 0]);
+        write_to_disk("out/out21.dot", &nc).expect("Couldn't write");
+        nc.add(1, &vec![0, 0]);
+        write_to_disk("out/out22.dot", &nc).expect("Couldn't write");
+    }
 }
