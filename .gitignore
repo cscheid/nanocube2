@@ -5,3 +5,5 @@ build
 local_data
 bin
 target
+nanocube2/out
+
