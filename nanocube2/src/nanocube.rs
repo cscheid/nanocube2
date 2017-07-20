@@ -1,3 +1,4 @@
+use cube::Monoid;
 use ref_counted_vec::RefCountedVec;
 use std;
 use std::io::Write;
@@ -23,14 +24,14 @@ fn get_bit(value: usize, bit: usize) -> bool
 
 #[derive (Copy, Debug, Clone)]
 pub struct NCDimNode {
-    left: Option<usize>,
-    right: Option<usize>,
-    next: Option<usize>
+    pub left: Option<usize>,
+    pub right: Option<usize>,
+    pub next: Option<usize>
 }
 
 pub struct NCDim {
-    nodes: RefCountedVec<NCDimNode>,
-    width: usize
+    pub nodes: RefCountedVec<NCDimNode>,
+    pub width: usize
 }
 
 impl NCDim {
@@ -57,21 +58,9 @@ impl NCDim {
 }
 
 pub struct Nanocube<Summary> {
-    base_root: Option<usize>,
-    dims: Vec<NCDim>,
-    summaries: RefCountedVec<Summary>
-}
-
-// we're not using add here because I can't make the trait implementations
-// and declarations work like I want them to.
-pub trait Monoid<RHS = Self> {
-    fn mapply(&self, rhs: &RHS) -> Self;
-    fn mempty() -> Self;
-}
-
-impl Monoid for usize {
-    fn mapply(&self, rhs: &usize) -> usize { self + rhs }
-    fn mempty() -> usize { 0 }
+    pub base_root: Option<usize>,
+    pub dims: Vec<NCDim>,
+    pub summaries: RefCountedVec<Summary>
 }
 
 impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
