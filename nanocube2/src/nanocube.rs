@@ -478,5 +478,7 @@ pub fn smoke_test()
         write_dot_to_disk("out/out21.dot", &nc).expect("Couldn't write");
         nc.add(1, &vec![0, 0]);
         write_dot_to_disk("out/out22.dot", &nc).expect("Couldn't write");
+        nc.add(1, &vec![0, 0]);
+        write_dot_to_disk("out/out23.dot", &nc).expect("Couldn't write");
     }
 }
