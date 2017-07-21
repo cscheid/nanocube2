@@ -5,7 +5,7 @@ use std::io::Write;
 
 //////////////////////////////////////////////////////////////////////////////
 
-static DEBUG_ENABLED: bool = false;
+static DEBUG_ENABLED: bool = true;
 
 macro_rules! debug_print {
     ($str:expr $(,$params:expr)*) => (
@@ -13,6 +13,14 @@ macro_rules! debug_print {
             print!("{}:{} - ", file!(), line!());
             println!($str $(,$params)*);
         }
+    )
+}
+
+macro_rules! debug_var {
+    ($var:ident) => (
+        debug_print!("{} = {:?}",
+                     stringify!($var),
+                     $var);
     )
 }
 
@@ -313,8 +321,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 }
             },
             (Some(a), None, None) => {
-                assert!(false, "internal error");
-                NCDimNode { left: None, right: None, next: None }
+                unreachable!();
             }
             (None, Some(b), Some(false)) => {
                 debug_print!("case 3");
@@ -338,14 +345,13 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 }
             },
             (None, Some(b), None) => {
-                assert!(false, "internal error");
-                NCDimNode { left: None, right: None, next: None }
+                unreachable!();
             },
             (Some(a), Some(b), Some(false)) => {
                 debug_print!("case 5");
                 let a_union_c = result.0;
                 let c = result.1;
-                let an_union_bn = self.get_node(dim+1, current_node.next.unwrap()).next;
+                let an_union_bn = current_node.next;
                 let cn = self.get_node(dim, c.unwrap()).next;
 
                 // Here's a relatively clever bit. We need the next node to
@@ -386,7 +392,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 
                 let b_union_c = result.0;
                 let c = result.1;
-                let an_union_bn = self.get_node(dim+1, current_node.next.unwrap()).next;
+                let an_union_bn = current_node.next;
                 let cn = self.get_node(dim, c.unwrap()).next;
 
                 // this is relatively fast
@@ -401,12 +407,10 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 }
             },
             (Some(a), Some(b), None) => {
-                assert!(false, "internal error");
-                NCDimNode { left: None, right: None, next: None }
+                unreachable!();
             },
             (None, None, Some(_)) => {
-                assert!(false, "internal error");
-                NCDimNode { left: None, right: None, next: None }
+                unreachable!();
             },
             (None, None, None) => {
                 debug_print!("case 7");
@@ -604,13 +608,26 @@ pub fn smoke_test()
     // test_nanocube("out/out1.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![3,3]]);
-    
-    test_nanocube("out/out1.dot", vec![2,2],
-                  &vec![vec![0,0],
-                        vec![1,0],
-                        vec![1,1]]);
-    // test_nanocube("out/out3.dot", vec![2,2],
+
+    //////////////////////////////////////////////////////////////////////////
+    // test_nanocube("/dev/null", vec![2,2],
+    //               &vec![vec![0,0],
+    //                     vec![1,0],
+    //                     vec![1,1]]);
+    // test_nanocube("/dev/null", vec![2,2],
     //               &vec![vec![2,1],
     //                     vec![1,0],
     //                     vec![1,1]]);
+    //////////////////////////////////////////////////////////////////////////
+    
+    test_nanocube("out/out0.dot", vec![2,2],
+                  &vec![vec![1,0]]);
+    test_nanocube("out/out1.dot", vec![2,2],
+                  &vec![vec![1,0],
+                        vec![1,3]]);
+    test_nanocube("out/out2.dot", vec![2,2],
+                  &vec![vec![1,0],
+                        vec![1,3],
+                        vec![1,2]]);
+
 }
