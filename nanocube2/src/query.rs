@@ -1,4 +1,4 @@
-use nanocube::Nanocube;
+use nanocube::{Nanocube, NodePointerType};
 use cube::Cube;
 use cube::Monoid;
 
@@ -47,8 +47,8 @@ fn nanocube_range_query<S>(nc: &Nanocube<S>, bounds: &Vec<(usize, usize)>) -> S
 {
     assert!(bounds.len() == nc.dims.len());
     let mut dim = 0;
-    let mut dim_range_list      = Vec::<(Range, Option<usize>)>::new();
-    let mut next_dim_range_list = Vec::<(Range, Option<usize>)>::new();
+    let mut dim_range_list      = Vec::<(Range, NodePointerType)>::new();
+    let mut next_dim_range_list = Vec::<(Range, NodePointerType)>::new();
     dim_range_list.push((Range::new_from_width(nc.dims[dim].width),
                          nc.base_root));
     // process the links into further dimensions of the nanocube
@@ -58,13 +58,13 @@ fn nanocube_range_query<S>(nc: &Nanocube<S>, bounds: &Vec<(usize, usize)>) -> S
 
         while dim_range_list.len() > 0 {
             let (current_range, node_index) = dim_range_list.pop().expect("internal error");
-            if node_index == None {
+            if node_index == -1 {
                 continue;
             }
-            let node_index = node_index.expect("internal error");
+            // let node_index = node_index.expect("internal error");
             let current_node = nc.get_node(dim, node_index);
             if query_range.contains(&current_range) ||
-                (current_node.left == None && current_node.right == None) {
+                (current_node.left == -1 && current_node.right == -1) {
                 next_dim_range_list.push((Range::new_from_width(nc.dims[dim+1].width),
                                           current_node.next));
                 continue;
@@ -89,15 +89,13 @@ fn nanocube_range_query<S>(nc: &Nanocube<S>, bounds: &Vec<(usize, usize)>) -> S
     // process the links into nanocube summaries
     while dim_range_list.len() > 0 {
         let (current_range, node_index) = dim_range_list.pop().expect("internal error");
-        if node_index == None {
+        if node_index == -1 {
             continue;
         }
-        let node_index = node_index.expect("internal error");
         let current_node = nc.get_node(dim, node_index);
         if query_range.contains(&current_range) ||
-            (current_node.left == None && current_node.right == None) {
-            let summary_index = current_node.next.expect("internal error");
-            result = result.mapply(&nc.summaries.values[summary_index]);
+            (current_node.left == -1 && current_node.right == -1) {
+            result = result.mapply(&nc.summaries.values[current_node.next as usize]);
             continue;
         }
         let lo = current_range.lo_subrange();

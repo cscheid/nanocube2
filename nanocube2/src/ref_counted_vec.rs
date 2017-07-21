@@ -35,12 +35,12 @@ impl <T> RefCountedVec<T> {
         return self.values.len();
     }
 
-    pub fn at(&self, index: usize) -> &T {
-        &self.values[index]
+    pub fn at(&self, index: isize) -> &T {
+        &self.values[index as usize]
     }
 
-    pub fn at_mut(&mut self, index: usize) -> &mut T {
-        &mut self.values[index]
+    pub fn at_mut(&mut self, index: isize) -> &mut T {
+        &mut self.values[index as usize]
     }
     
     pub fn insert(&mut self, value: T) -> usize {
@@ -55,14 +55,16 @@ impl <T> RefCountedVec<T> {
         }
     }
 
-    pub fn make_ref(&mut self, index: usize) -> usize {
+    pub fn make_ref(&mut self, index: isize) -> usize {
+        let index = index as usize;
         assert!(index < self.values.len());
         assert!(self.ref_counts.len() == self.values.len());
         self.ref_counts[index] += 1;
         self.ref_counts[index]
     }
 
-    pub fn release_ref(&mut self, index: usize) -> usize {
+    pub fn release_ref(&mut self, index: isize) -> usize {
+        let index = index as usize;
         assert!(index < self.values.len());
         assert!(self.ref_counts.len() == self.values.len());
         assert!(self.ref_counts[index] > 0);
