@@ -5,7 +5,7 @@ use std::io::Write;
 
 //////////////////////////////////////////////////////////////////////////////
 
-static DEBUG_ENABLED: bool = true;
+static DEBUG_ENABLED: bool = false;
 
 macro_rules! debug_print {
     ($str:expr $(,$params:expr)*) => (
@@ -610,24 +610,24 @@ pub fn smoke_test()
     //                     vec![3,3]]);
 
     //////////////////////////////////////////////////////////////////////////
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![0,0],
-    //                     vec![1,0],
-    //                     vec![1,1]]);
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![2,1],
-    //                     vec![1,0],
-    //                     vec![1,1]]);
-    //////////////////////////////////////////////////////////////////////////
-    
-    test_nanocube("out/out0.dot", vec![2,2],
-                  &vec![vec![1,0]]);
-    test_nanocube("out/out1.dot", vec![2,2],
-                  &vec![vec![1,0],
-                        vec![1,3]]);
-    test_nanocube("out/out2.dot", vec![2,2],
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![0,0],
+                        vec![1,0],
+                        vec![1,1]]);
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![2,1],
+                        vec![1,0],
+                        vec![1,1]]);
+    test_nanocube("/dev/null", vec![2,2],
                   &vec![vec![1,0],
                         vec![1,3],
                         vec![1,2]]);
+    //////////////////////////////////////////////////////////////////////////
+    
+    // test_nanocube("out/out0.dot", vec![2,2],
+    //               &vec![vec![1,0]]);
+    // test_nanocube("out/out1.dot", vec![2,2],
+    //               &vec![vec![1,0],
+    //                     vec![1,3]]);
 
 }
