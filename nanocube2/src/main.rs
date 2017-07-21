@@ -1,5 +1,8 @@
 extern crate rand;
 
+#[macro_use]
+extern crate timeit;
+
 mod ref_counted_vec;
 mod nanocube;
 mod naivecube;

@@ -5,6 +5,7 @@ use std::cmp;
 use rand;
 use rand::distributions::{IndependentSample, Range};
 use cube::Cube;
+use timeit;
 
 fn generate_random_dataset(widths: &Vec<usize>, n: usize) -> Vec<Vec<usize>>
 {
@@ -42,42 +43,50 @@ fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usiz
 pub fn check_nanocube_and_naivecube_equivalence()
 {
     let nruns = 100;
-    let width = vec![3,3];
-    let npoints = 10;
+    let width = vec![10,10];
+    let npoints = 100;
     let nranges = 5;
     let mut failed = false;
 
-    for _ in 0..nruns {
-        let data = generate_random_dataset(&width, npoints);
-        let mut naivecube = Naivecube::<usize>::new(width.clone());
-        let mut nanocube = Nanocube::<usize>::new(width.clone());
+    let nloops = 100;
+    let sec = timeit_loops!(nloops, {
+        for _ in 0..nruns {
+            let data = generate_random_dataset(&width, npoints);
+            let mut naivecube = Naivecube::<usize>::new(width.clone());
+            let mut nanocube = Nanocube::<usize>::new(width.clone());
 
-        for point in &data {
-            naivecube.add(1, point);
-            nanocube.add(1, point);
-        }
+            for point in &data {
+                naivecube.add(1, point);
+                nanocube.add(1, point);
+            }
 
-        let ranges = generate_random_ranges(&width, nranges);
+            let ranges = generate_random_ranges(&width, nranges);
 
-        for range in ranges {
-            let naive_result = naivecube.range_query(&range);
-            let nc_result = nanocube.range_query(&range);
-            if naive_result != nc_result {
-                println!("mismatch!");
-                println!("data: {:?}", &data);
-                println!("query region: {:?}", &range);
-                println!("naive result: {:?}", &naive_result);
-                println!("nanocube res: {:?}", &nc_result);
-                nanocube::write_dot_to_disk("out/bad_nc.dot", &nanocube)
-                    .expect("internal error");
-                println!("{:?}", nanocube.summaries.values);
-                failed = true;
+            for range in ranges {
+                let naive_result = naivecube.range_query(&range);
+                let nc_result = nanocube.range_query(&range);
+                if naive_result != nc_result {
+                    println!("mismatch!");
+                    println!("data: {:?}", &data);
+                    println!("query region: {:?}", &range);
+                    println!("naive result: {:?}", &naive_result);
+                    println!("nanocube res: {:?}", &nc_result);
+                    nanocube::write_dot_to_disk("out/bad_nc.dot", &nanocube)
+                        .expect("internal error");
+                    println!("{:?}", nanocube.summaries.values);
+                    failed = true;
+                }
             }
         }
-    }
-    if !failed {
-        println!("Passed {} tests.", nruns);
-    }
+        // if !failed {
+        //     println!("Passed {} tests.", nruns);
+        // }
+    });
+
+    println!("{} insertions in {} secs (rate: {}).\n",
+             nloops * nruns * npoints,
+             (nloops as f64) * sec,
+             ((nruns * npoints) as f64) / sec);
 }
 
 pub fn run()
