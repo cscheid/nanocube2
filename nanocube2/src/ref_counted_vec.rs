@@ -45,7 +45,7 @@ impl <T> RefCountedVec<T> {
     
     pub fn insert(&mut self, value: T) -> usize {
         if self.free_list.len() > 0 {
-            let free_index = self.free_list.pop().expect("internal error");
+            let free_index = self.free_list.pop().unwrap();
             self.values[free_index] = value;
             free_index
         } else {

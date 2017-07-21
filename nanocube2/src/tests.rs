@@ -48,7 +48,7 @@ pub fn check_nanocube_and_naivecube_equivalence()
     let nranges = 5;
     let mut failed = false;
 
-    let nloops = 100;
+    let nloops = 1000;
     let sec = timeit_loops!(nloops, {
         for _ in 0..nruns {
             let data = generate_random_dataset(&width, npoints);

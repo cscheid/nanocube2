@@ -69,7 +69,8 @@ impl NCDim {
 pub struct Nanocube<Summary> {
     pub base_root: Option<usize>,
     pub dims: Vec<NCDim>,
-    pub summaries: RefCountedVec<Summary>
+    pub summaries: RefCountedVec<Summary>,
+    release_list: Vec<(usize, usize)>
 }
 
 impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
@@ -79,7 +80,8 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         Nanocube {
             base_root: None,
             dims: widths.into_iter().map(|w| NCDim::new(w)).collect(),
-            summaries: RefCountedVec::new()
+            summaries: RefCountedVec::new(),
+            release_list: Vec::new()
         }
     }
     
@@ -95,35 +97,34 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     }
 
     pub fn release_node_ref(&mut self, node_index: Option<usize>, dim: usize) {
+        let RELEASE_THRESH = 256;
         debug_print!("release_node_ref {:?} {}", node_index, dim);
         if let Some(node_index) = node_index {
-            let mut stack = Vec::<(usize, usize)>::new();
-            fn push(s: &mut Vec<(usize, usize)>, v: (usize, usize)) {
-                debug_print!("pushing {:?}", v);
-                s.push(v);
-            }
-            push(&mut stack, (node_index, dim)); 
-            while stack.len() > 0 {
-                let (node_index, dim) = stack.pop().unwrap();
-                if dim == self.dims.len() {
-                    self.summaries.release_ref(node_index);
-                } else {
-                    let new_ref_count = self.dims[dim].nodes.release_ref(node_index);
-                    if new_ref_count == 0 {
-                        debug_print!("Node {},{} is free", dim, node_index);
-                        let mut node = self.dims[dim].at_mut(node_index);
-                        if let Some(left) = node.left {
-                            push(&mut stack, (left, dim));
+            self.release_list.push((node_index, dim));
+
+            if self.release_list.len() > RELEASE_THRESH {
+                while self.release_list.len() > 0 {
+                    let (node_index, dim) = self.release_list.pop().unwrap();
+                    if dim == self.dims.len() {
+                        self.summaries.release_ref(node_index);
+                    } else {
+                        let new_ref_count = self.dims[dim].nodes.release_ref(node_index);
+                        if new_ref_count == 0 {
+                            debug_print!("Node {},{} is free", dim, node_index);
+                            let mut node = self.dims[dim].at_mut(node_index);
+                            if let Some(left) = node.left {
+                                self.release_list.push((left, dim));
+                            }
+                            if let Some(right) = node.right {
+                                self.release_list.push((right, dim));
+                            }
+                            if let Some(next) = node.next {
+                                self.release_list.push((next, dim+1));
+                            }
+                            node.left = None;
+                            node.right = None;
+                            node.next = None;
                         }
-                        if let Some(right) = node.right {
-                            push(&mut stack, (right, dim));
-                        }
-                        if let Some(next) = node.next {
-                            push(&mut stack, (next, dim+1));
-                        }
-                        node.left = None;
-                        node.right = None;
-                        node.next = None;
                     }
                 }
             }

@@ -6,3 +6,6 @@ authors = ["Carlos Scheidegger <cscheid@cs.arizona.edu>"]
 [dependencies]
 rand = "0.3"
 timeit = "0.1.2"
+
+[profile.release]
+debug = true
