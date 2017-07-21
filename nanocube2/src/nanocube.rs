@@ -88,14 +88,13 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     }
     
     pub fn make_node_ref(&mut self, node_index: NodePointerType, dim: usize) -> usize {
-        match node_index {
-            -1 => 0,
-            v if dim == self.dims.len() => self.summaries.make_ref(v),
-            v /* otherwise */           => {
-                assert!((v as usize) < self.dims[dim].len());
-                self.dims[dim].nodes.make_ref(v)
-            }
+        if node_index == -1 {
+            return 0;
         }
+        if dim == self.dims.len() {
+            return self.summaries.make_ref(node_index);
+        }
+        self.dims[dim].nodes.make_ref(node_index)
     }
 
     pub fn release_node_ref(&mut self, node_index: NodePointerType, dim: usize) {
@@ -199,16 +198,16 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     
     pub fn merge(&mut self,
                  node_1: NodePointerType, node_2: NodePointerType,
-                 dim: usize) -> (NodePointerType, NodePointerType) {
+                 dim: usize) -> NodePointerType {
         debug_print!("Will merge {:?}, {:?} in dim {}",
                  node_1, node_2, dim);
         if node_1 == -1 {
             debug_print!("  trivial merge: {:?}", node_2);
-            return (node_2, self.get_summary_index(node_2, dim));
+            return node_2;
         }
         if node_2 == -1 {
             debug_print!("  trivial merge: {:?}", node_1);
-            return (node_1, self.get_summary_index(node_1, dim));
+            return node_1;
         }
         if dim == self.dims.len() {
             let new_summary = {
@@ -218,7 +217,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
             };
             let new_summary_index = self.summaries.insert(new_summary) as isize;
             debug_print!("  summary insert: {:?}", new_summary_index);
-            return (new_summary_index, new_summary_index);
+            return new_summary_index;
         }
         debug_print!("  nontrivial merge");
         let node_1_node = self.get_node(dim, node_1);
@@ -227,16 +226,16 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         let left_merge = self.merge(node_1_node.left, node_2_node.left, dim);
         debug_print!("  right side of nontrivial merge");
         let right_merge = self.merge(node_1_node.right, node_2_node.right, dim);
-        let node_1_index = left_merge.0;
-        let node_2_index = right_merge.0;
+        let node_1_index = left_merge;
+        let node_2_index = right_merge;
         debug_print!("  next side of nontrivial merge");
         let next_merge = match (node_1_index, node_2_index) {
             (-1, -1) =>
                 self.merge(node_1_node.next, node_2_node.next, dim+1),
             (-1, node_2_merge_next) =>
-                (self.dims[dim].at(node_2_merge_next).next, right_merge.1),
+                self.dims[dim].at(node_2_merge_next).next,
             (node_1_merge_next, -1) =>
-                (self.dims[dim].at(node_1_merge_next).next, left_merge.1),
+                self.dims[dim].at(node_1_merge_next).next,
             (node_1_merge_next, node_2_merge_next) => {
                 let node_1_merge_next_next = self.get_node(dim, node_1_merge_next).next;
                 let node_2_merge_next_next = self.get_node(dim, node_2_merge_next).next;
@@ -246,17 +245,17 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
             }
         };
         let new_node = NCDimNode {
-            left: left_merge.0,
-            right: right_merge.0,
-            next: next_merge.0
+            left: left_merge,
+            right: right_merge,
+            next: next_merge
         };
-        self.make_node_ref(left_merge.0, dim);
-        self.make_node_ref(right_merge.0, dim);
-        self.make_node_ref(next_merge.0, dim+1);
+        self.make_node_ref(left_merge, dim);
+        self.make_node_ref(right_merge, dim);
+        self.make_node_ref(next_merge, dim+1);
         let new_index = self.dims[dim].nodes.insert(new_node);
         debug_print!("  Inserted merge node {:?} at {},{}",
                  new_node, dim, new_index);
-        (new_index as isize, next_merge.1)
+        new_index as isize
     }
 
     pub fn insert(&mut self,
@@ -328,7 +327,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 let c = result.0;
                 let n1 = self.get_node(dim, current_node.left).next;
                 let n2 = self.get_node(dim, result.0).next;
-                let an_union_cn = self.merge(n1, n2, dim+1).0;
+                let an_union_cn = self.merge(n1, n2, dim+1);
                 NCDimNode {
                     left: current_node.left,
                     right: c,
@@ -344,7 +343,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 let c = result.0;
                 let n1 = self.get_node(dim, current_node.right).next;
                 let n2 = self.get_node(dim, result.0).next;
-                let bn_union_cn = self.merge(n1, n2, dim+1).0;
+                let bn_union_cn = self.merge(n1, n2, dim+1);
                 NCDimNode {
                     left: c,
                     right: current_node.right,
@@ -393,7 +392,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 // everywhere.
 
                 // this is relatively fast
-                let an_union_bn_union_cn = self.merge(an_union_bn, cn, dim+1).0;
+                let an_union_bn_union_cn = self.merge(an_union_bn, cn, dim+1);
 
                 // this is pretty slow so we don't do it.
                 // let an_union_bn_union_cn = self.merge(an_union_cn, bn, dim+1);
@@ -413,7 +412,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 let cn = self.get_node(dim, c).next;
 
                 // this is relatively fast
-                let an_union_bn_union_cn = self.merge(an_union_bn, cn, dim+1).0;
+                let an_union_bn_union_cn = self.merge(an_union_bn, cn, dim+1);
 
                 // this is pretty slow so we don't do it.
                 // let an_union_bn_union_cn = self.merge(an_union_cn, bn, dim+1);
@@ -436,16 +435,37 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         debug_print!("insert merge node {:?} at {},{}",
                      new_node, dim, new_index);
 
-        let new_orphan_node = NCDimNode {
-            left:  if where_to_insert == Some(false) { result.1 } else { -1 },
-            right: if where_to_insert == Some(true)  { result.1 } else { -1 },
-            next:  if where_to_insert == None { result.1 } else {
-                self.get_node(dim, result.1).next
+        let new_orphan_node = match where_to_insert {
+            Some(false) => {
+                let n = self.get_node(dim, result.1).next;
+                self.make_node_ref(result.1, dim);
+                self.make_node_ref(n, dim+1);
+                NCDimNode {
+                    left: result.1,
+                    right: -1,
+                    next: self.get_node(dim, result.1).next
+                }
+            },
+            Some(true) => {
+                let n = self.get_node(dim, result.1).next;
+                self.make_node_ref(result.1, dim);
+                self.make_node_ref(n, dim+1);
+                NCDimNode {
+                    left: -1,
+                    right: result.1,
+                    next: n
+                }
+            },
+            None => {
+                self.make_node_ref(result.1, dim+1);
+                NCDimNode {
+                    left: -1,
+                    right: -1,
+                    next: result.1
+                }
             }
         };
-        self.make_node_ref(new_orphan_node.left,  dim);
-        self.make_node_ref(new_orphan_node.right, dim);
-        self.make_node_ref(new_orphan_node.next,  dim+1);
+
         let new_orphan_index = self.dims[dim].nodes.insert(new_orphan_node);
         debug_print!("insert 'orphan' node {:?} at {},{}",
                      new_orphan_node, dim, new_orphan_index);
