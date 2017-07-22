@@ -22,27 +22,40 @@ fn sorted_array_has_no_duplicates(v: &Vec<usize>) -> bool {
     true
 }
 
+const BASE_CAPACITY: usize = 64;
+
 impl <T> RefCountedVec<T> {
     pub fn new() -> RefCountedVec<T> {
         RefCountedVec {
-            values: Vec::new(),
-            ref_counts: Vec::new(),
-            free_list: Vec::new()
+            values: Vec::with_capacity(BASE_CAPACITY),
+            ref_counts: Vec::with_capacity(BASE_CAPACITY),
+            free_list: Vec::with_capacity(BASE_CAPACITY)
         }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         return self.values.len();
     }
 
+    #[inline]
     pub fn at(&self, index: isize) -> &T {
         &self.values[index as usize]
     }
 
+    #[inline]
     pub fn at_mut(&mut self, index: isize) -> &mut T {
         &mut self.values[index as usize]
     }
-    
+
+    // #[inline]
+    // pub fn insert_no_free(&mut self, value: T) -> usize {
+    //     self.values.push(value);
+    //     self.ref_counts.push(0);
+    //     self.values.len() - 1
+    // }
+
+    #[inline]
     pub fn insert(&mut self, value: T) -> usize {
         if self.free_list.len() > 0 {
             let free_index = self.free_list.pop().unwrap();
@@ -55,19 +68,21 @@ impl <T> RefCountedVec<T> {
         }
     }
 
+    #[inline]
     pub fn make_ref(&mut self, index: isize) -> usize {
         let index = index as usize;
-        assert!(index < self.values.len());
-        assert!(self.ref_counts.len() == self.values.len());
+        debug_assert!(index < self.values.len());
+        debug_assert!(self.ref_counts.len() == self.values.len());
         self.ref_counts[index] += 1;
         self.ref_counts[index]
     }
 
+    #[inline]
     pub fn release_ref(&mut self, index: isize) -> usize {
         let index = index as usize;
-        assert!(index < self.values.len());
-        assert!(self.ref_counts.len() == self.values.len());
-        assert!(self.ref_counts[index] > 0);
+        debug_assert!(index < self.values.len());
+        debug_assert!(self.ref_counts.len() == self.values.len());
+        debug_assert!(self.ref_counts[index] > 0);
         self.ref_counts[index] -= 1;
         if self.ref_counts[index] == 0 {
             self.free_list.push(index);

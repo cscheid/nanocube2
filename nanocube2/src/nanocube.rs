@@ -28,6 +28,7 @@ macro_rules! debug_var {
 
 pub type NodePointerType = i32;
 
+#[inline]
 fn get_bit(value: usize, bit: usize) -> bool
 {
     (value >> bit) & 1 != 0
@@ -46,6 +47,7 @@ pub struct NCDim {
 }
 
 impl NCDim {
+    #[inline]
     fn len(&self) -> usize {
         return self.nodes.len();
     }
@@ -59,10 +61,12 @@ impl NCDim {
 }
 
 impl NCDim {
+    #[inline]
     pub fn at(&self, index: NodePointerType) -> &NCDimNode {
         return &self.nodes.values[index as usize];
     }
 
+    #[inline]
     pub fn at_mut(&mut self, index: NodePointerType) -> &mut NCDimNode {
         return &mut self.nodes.values[index as usize];
     }
@@ -78,7 +82,7 @@ pub struct Nanocube<Summary> {
 impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
 
     pub fn new(widths: Vec<usize>) -> Nanocube<Summary> {
-        assert!(widths.len() > 0);
+        debug_assert!(widths.len() > 0);
         Nanocube {
             base_root: -1,
             dims: widths.into_iter().map(|w| NCDim::new(w)).collect(),
@@ -87,6 +91,32 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         }
     }
     
+    #[inline]
+    pub fn make_node_ref_not_summary_or_null(&mut self, node_index: NodePointerType, dim: usize) -> usize {
+        debug_assert!(dim < self.dims.len());
+        debug_assert!(node_index != -1);
+        self.dims[dim].nodes.make_ref(node_index as isize)
+    }
+
+    #[inline]
+    pub fn make_node_ref_not_null(&mut self, node_index: NodePointerType, dim: usize) -> usize {
+        debug_assert!(node_index != -1);
+        if dim == self.dims.len() {
+            return self.summaries.make_ref(node_index as isize);
+        }
+        self.dims[dim].nodes.make_ref(node_index as isize)
+    }
+
+    #[inline]
+    pub fn make_node_ref_not_summary(&mut self, node_index: NodePointerType, dim: usize) -> usize {
+        debug_assert!(dim < self.dims.len());
+        if node_index == -1 {
+            return 0;
+        }
+        self.dims[dim].nodes.make_ref(node_index as isize)
+    }
+    
+    #[inline]
     pub fn make_node_ref(&mut self, node_index: NodePointerType, dim: usize) -> usize {
         if node_index == -1 {
             return 0;
@@ -137,61 +167,44 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
     
     pub fn insert_fresh_node(&mut self,
                              summary: Summary, addresses: &Vec<usize>, dim: usize, bit: usize)
-                             -> (NodePointerType, NodePointerType) {
-        assert!(self.dims.len() == addresses.len());
-        if dim == self.dims.len() {
-            let new_ref = self.summaries.insert(summary) as NodePointerType;
-            debug_print!("insert_fresh_node summary {:?} {} {}: {:?}",
-                         addresses, dim, bit, new_ref);
-            (new_ref, new_ref)
-        } else {
+                             -> NodePointerType {
+        let new_summary_ref = self.summaries.insert(summary) as NodePointerType;
+        let mut next_node: NodePointerType = new_summary_ref;
+        for d in (dim..self.dims.len()).rev() {
             let width = self.dims[dim].width;
-            if bit != width {
-                let where_to_insert = get_bit(addresses[dim], width-bit-1);
-                let recursion_result = self.insert_fresh_node(summary, addresses, dim, bit+1);
-                debug_print!("returned from     refinement recurse middle {:?} {} {}: {:?}",
-                         addresses, dim, bit, recursion_result);
-                let left_recursion_result = recursion_result.0;
-                let next = self.dims[dim].at(left_recursion_result).next;
-                let new_refinement_node = if where_to_insert {
-                    NCDimNode {
+            let mut refine_node: NodePointerType = -1;
+            let mut lo = if dim == d { bit } else { 0 };
+            for b in (lo..width+1).rev() {
+                if b == width {
+                    let node = NCDimNode {
                         left: -1,
-                        right: recursion_result.0,
-                        next: next
-                    }
-                } else {
-                    NCDimNode {
-                        left: recursion_result.0,
                         right: -1,
-                        next: next
-                    }
-                };
-                self.make_node_ref(next, dim+1);
-                self.make_node_ref(recursion_result.0, dim);
-                let new_index = self.dims[dim].nodes.insert(new_refinement_node);
-                debug_print!("inserted node {:?} at {},{}", new_refinement_node, dim, new_index);
-                debug_print!("insert_fresh_node refinement         middle {:?} {} {}: {:?}",
-                         addresses, dim, bit, (new_index, recursion_result.1));
-                return (new_index as NodePointerType, recursion_result.1);
-            } else {
-                let next_dim_result = self.insert_fresh_node(summary, addresses, dim+1, 0);
-                debug_print!("returned from     refinement recurse bottom {:?} {} {}: {:?}",
-                         addresses, dim, bit, next_dim_result);
-                let new_node_at_current_dim = NCDimNode {
-                    left: -1,
-                    right: -1,
-                    next: next_dim_result.0
-                };
-                self.make_node_ref(next_dim_result.0, dim+1);
-                let new_index = self.dims[dim].nodes.insert(new_node_at_current_dim);
-                debug_print!("inserted node {:?} at {},{}", new_node_at_current_dim, dim, new_index);
-                debug_print!("insert_fresh_node refinement         bottom {:?} {} {}: {:?}",
-                         addresses, dim, bit, (new_index, next_dim_result.1));
-                return (new_index as NodePointerType, next_dim_result.1);
+                        next: next_node
+                    };
+                    refine_node = self.dims[d].nodes.insert(node) as NodePointerType;
+                    debug_print!("insert node {:?} at {},{}",
+                                 node, d, refine_node);
+                    self.make_node_ref_not_null(next_node, d+1);
+                } else {
+                    let where_to_insert = get_bit(addresses[d], width-b-1);
+                    let node = NCDimNode {
+                        left:  if where_to_insert { -1 } else { refine_node },
+                        right: if where_to_insert { refine_node } else { -1 },
+                        next: next_node
+                    };
+                    refine_node = self.dims[d].nodes.insert(node) as NodePointerType;
+                    debug_print!("insert node {:?} at {},{}",
+                                 node, d, refine_node);
+                    self.make_node_ref_not_summary_or_null(refine_node, d);
+                    self.make_node_ref_not_null(next_node, d+1);
+                }
             }
+            next_node = refine_node;
         }
+        next_node
     }
 
+    #[inline]
     pub fn get_node(&self, dim: usize, node_index: NodePointerType) -> NCDimNode {
         self.dims[dim].at(node_index).clone()
     }
@@ -200,7 +213,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                  node_1: NodePointerType, node_2: NodePointerType,
                  dim: usize) -> NodePointerType {
         debug_print!("Will merge {:?}, {:?} in dim {}",
-                 node_1, node_2, dim);
+                     node_1, node_2, dim);
         if node_1 == -1 {
             debug_print!("  trivial merge: {:?}", node_2);
             return node_2;
@@ -230,13 +243,20 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         let node_2_index = right_merge;
         debug_print!("  next side of nontrivial merge");
         let next_merge = match (node_1_index, node_2_index) {
-            (-1, -1) =>
-                self.merge(node_1_node.next, node_2_node.next, dim+1),
-            (-1, node_2_merge_next) =>
-                self.dims[dim].at(node_2_merge_next).next,
-            (node_1_merge_next, -1) =>
-                self.dims[dim].at(node_1_merge_next).next,
+            (-1, -1) => {
+                self.merge(node_1_node.next, node_2_node.next, dim+1)
+            },
+            (-1, node_2_merge_next) => {
+                self.make_node_ref_not_summary_or_null(right_merge, dim);
+                self.dims[dim].at(node_2_merge_next).next
+            },
+            (node_1_merge_next, -1) => {
+                self.make_node_ref_not_summary_or_null(left_merge, dim);
+                self.dims[dim].at(node_1_merge_next).next
+            },
             (node_1_merge_next, node_2_merge_next) => {
+                self.make_node_ref_not_summary_or_null(left_merge, dim);
+                self.make_node_ref_not_summary_or_null(right_merge, dim);
                 let node_1_merge_next_next = self.get_node(dim, node_1_merge_next).next;
                 let node_2_merge_next_next = self.get_node(dim, node_2_merge_next).next;
                 self.merge(node_1_merge_next_next,
@@ -249,9 +269,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
             right: right_merge,
             next: next_merge
         };
-        self.make_node_ref(left_merge, dim);
-        self.make_node_ref(right_merge, dim);
-        self.make_node_ref(next_merge, dim+1);
+        self.make_node_ref_not_null(next_merge, dim+1);
         let new_index = self.dims[dim].nodes.insert(new_node);
         debug_print!("  Inserted merge node {:?} at {},{}",
                  new_node, dim, new_index);
@@ -282,7 +300,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                          addresses, dim, bit, current_node_index);
             let fresh_insert = self.insert_fresh_node(summary, addresses, dim, bit);
             debug_print!("--- inserted fresh node.");
-            return (fresh_insert.0, fresh_insert.0)
+            return (fresh_insert, fresh_insert)
         }
         let width = self.dims[dim].width;
         let current_node = self.get_node(dim, current_node_index);
@@ -428,9 +446,9 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 unreachable!();
             }
         };
-        self.make_node_ref(new_node.left,  dim);
-        self.make_node_ref(new_node.right, dim);
-        self.make_node_ref(new_node.next,  dim+1);
+        self.make_node_ref_not_summary(new_node.left,  dim);
+        self.make_node_ref_not_summary(new_node.right, dim);
+        self.make_node_ref_not_null(new_node.next,  dim+1);
         let new_index = self.dims[dim].nodes.insert(new_node);
         // self.release_node_ref(result.0, dim);
         debug_print!("insert merge node {:?} at {},{}",
@@ -439,8 +457,8 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         let new_orphan_node = match where_to_insert {
             Some(false) => {
                 let n = self.get_node(dim, result.1).next;
-                self.make_node_ref(result.1, dim);
-                self.make_node_ref(n, dim+1);
+                self.make_node_ref_not_summary(result.1, dim);
+                self.make_node_ref_not_null(n, dim+1);
                 NCDimNode {
                     left: result.1,
                     right: -1,
@@ -449,8 +467,8 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
             },
             Some(true) => {
                 let n = self.get_node(dim, result.1).next;
-                self.make_node_ref(result.1, dim);
-                self.make_node_ref(n, dim+1);
+                self.make_node_ref_not_summary(result.1, dim);
+                self.make_node_ref_not_null(n, dim+1);
                 NCDimNode {
                     left: -1,
                     right: result.1,
@@ -458,7 +476,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
                 }
             },
             None => {
-                self.make_node_ref(result.1, dim+1);
+                self.make_node_ref_not_null(result.1, dim+1);
                 NCDimNode {
                     left: -1,
                     right: -1,
@@ -494,6 +512,7 @@ impl <Summary: Monoid + PartialOrd> Nanocube<Summary> {
         self.release_node_ref(orphan_node, 0);
     }
 
+    #[inline]
     pub fn get_summary_index(&self, node_index: NodePointerType, dim: usize) -> NodePointerType {
         let mut current_node_index = node_index;
         let mut dim = dim;
