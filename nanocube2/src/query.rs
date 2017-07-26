@@ -43,7 +43,7 @@ impl Range {
 //////////////////////////////////////////////////////////////////////////////
 
 fn nanocube_range_query<S>(nc: &Nanocube<S>, bounds: &Vec<(usize, usize)>) -> S
-    where S: Monoid + PartialOrd
+    where S: Monoid + PartialOrd + Copy
 {
     assert!(bounds.len() == nc.dims.len());
     let mut dim = 0;
@@ -110,7 +110,7 @@ fn nanocube_range_query<S>(nc: &Nanocube<S>, bounds: &Vec<(usize, usize)>) -> S
     result
 }
     
-impl <Summary: Monoid + PartialOrd> Cube<Summary> for Nanocube<Summary> {
+impl <Summary: Monoid + PartialOrd + Copy> Cube<Summary> for Nanocube<Summary> {
     fn range_query(&self, bounds: &Vec<(usize, usize)>) -> Summary {
         nanocube_range_query(self, bounds)
     }

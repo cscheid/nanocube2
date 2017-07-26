@@ -5,7 +5,7 @@ pub trait Monoid<RHS = Self> {
     fn mempty() -> Self;
 }
 
-pub trait Cube<Summary: Monoid + PartialOrd> {
+pub trait Cube<Summary: Monoid + PartialOrd + Copy> {
     fn range_query(&self, bounds: &Vec<(usize, usize)>) -> Summary;
 }
 

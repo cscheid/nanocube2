@@ -6,7 +6,7 @@ pub struct Naivecube<Summary> {
     values: Vec<(Vec<usize>, Summary)>
 }
 
-impl <Summary: Monoid + PartialOrd> Naivecube<Summary> {
+impl <Summary: Monoid + PartialOrd + Copy> Naivecube<Summary> {
     pub fn add(&mut self,
                summary: Summary,
                addresses: &Vec<usize>)
@@ -24,7 +24,7 @@ impl <Summary: Monoid + PartialOrd> Naivecube<Summary> {
     }
 }
 
-impl <Summary: Monoid + PartialOrd> Cube<Summary> for Naivecube<Summary> {
+impl <Summary: Monoid + PartialOrd + Copy> Cube<Summary> for Naivecube<Summary> {
     fn range_query(&self, bounds: &Vec<(usize, usize)>) -> Summary {
         let mut result = Summary::mempty();
         assert!(bounds.len() == self.widths.len());

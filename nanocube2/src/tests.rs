@@ -6,6 +6,7 @@ use rand;
 use rand::distributions::{IndependentSample, Range};
 use cube::Cube;
 use timeit;
+use std;
 
 fn generate_random_dataset(widths: &Vec<usize>, n: usize) -> Vec<Vec<usize>>
 {
@@ -46,6 +47,10 @@ pub fn check_nanocube_and_naivecube_equivalence()
     let width = vec![10,10];
     let npoints = 100;
     let nranges = 5;
+    // let nruns = 100;
+    // let width = vec![2,2];
+    // let npoints = 4;
+    // let nranges = 5;
     let mut failed = false;
 
     let nloops = 1000;
@@ -55,10 +60,13 @@ pub fn check_nanocube_and_naivecube_equivalence()
             let mut naivecube = Naivecube::<usize>::new(width.clone());
             let mut nanocube = Nanocube::<usize>::new(width.clone());
 
+            let mut summaries = Vec::new();
             for point in &data {
                 naivecube.add(1, point);
-                nanocube.add(1, point);
+                summaries.push(1);
             }
+            nanocube.add_many(summaries, &data);
+            
 
             let ranges = generate_random_ranges(&width, nranges);
 
@@ -75,12 +83,10 @@ pub fn check_nanocube_and_naivecube_equivalence()
                         .expect("internal error");
                     println!("{:?}", nanocube.summaries.values);
                     failed = true;
+                    std::process::exit(1);
                 }
             }
         }
-        // if !failed {
-        //     println!("Passed {} tests.", nruns);
-        // }
     });
 
     println!("{} insertions in {} secs (rate: {}).\n",
