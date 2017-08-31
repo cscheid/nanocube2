@@ -180,7 +180,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         debug_print!("new summary inserted: {:?}", new_summary_ref);
         let mut next_node: NodePointerType = new_summary_ref;
         for d in (dim..self.dims.len()).rev() {
-            let width = self.dims[dim].width;
+            let width = self.dims[d].width;
             let mut refine_node: NodePointerType = -1;
             let mut lo = if dim == d { bit } else { 0 };
             for b in (lo..width+1).rev() {
@@ -251,23 +251,22 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         let node_1_index = left_merge;
         let node_2_index = right_merge;
         debug_print!("  next side of nontrivial merge");
-        let next_merge = match (node_1_index, node_2_index) {
-            (-1, -1) => {
+        let next_merge = if (node_1_index == -1) {
+            if (node_2_index == -1) {
                 self.merge(node_1_node.next, node_2_node.next, dim+1)
-            },
-            (-1, node_2_merge_next) => {
+            } else {
                 self.make_node_ref_not_summary_or_null(right_merge, dim);
-                self.dims[dim].at(node_2_merge_next).next
-            },
-            (node_1_merge_next, -1) => {
+                self.dims[dim].at(node_2_index).next
+            }
+        } else {
+            if (node_2_index == -1) {
                 self.make_node_ref_not_summary_or_null(left_merge, dim);
-                self.dims[dim].at(node_1_merge_next).next
-            },
-            (node_1_merge_next, node_2_merge_next) => {
+                self.dims[dim].at(node_1_index).next
+            } else {
                 self.make_node_ref_not_summary_or_null(left_merge, dim);
                 self.make_node_ref_not_summary_or_null(right_merge, dim);
-                let node_1_merge_next_next = self.get_node(dim, node_1_merge_next).next;
-                let node_2_merge_next_next = self.get_node(dim, node_2_merge_next).next;
+                let node_1_merge_next_next = self.get_node(dim, node_1_index).next;
+                let node_2_merge_next_next = self.get_node(dim, node_2_index).next;
                 self.merge(node_1_merge_next_next,
                            node_2_merge_next_next,
                            dim+1)
@@ -927,7 +926,7 @@ pub fn test_nanocube(out: &str, dims: Vec<usize>, data: &Vec<Vec<usize>>) {
     for d in data {
         nc.add(1, d);
     }
-    write_txt_to_disk("/dev/stdout", &nc).expect("Couldn't write");
+    // write_txt_to_disk("/dev/stdout", &nc).expect("Couldn't write");
     write_dot_to_disk(out, &nc).expect("Couldn't write");
 }
 
@@ -966,37 +965,33 @@ pub fn smoke_test()
     //////////////////////////////////////////////////////////////////////////
     // regression smoke tests
     
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![0,0],
-    //                     vec![1,0],
-    //                     vec![1,1]]);
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![2,1],
-    //                     vec![1,0],
-    //                     vec![1,1]]);
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![1,0],
-    //                     vec![1,3],
-    //                     vec![1,2]]);
-
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![0,0]]);
-
-
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![0,2],
-    //                     vec![1,0],
-    //                     vec![2,2],
-    //                     vec![0,2]]);
-
-    // test_nanocube("/dev/null", vec![2,2],
-    //               &vec![vec![0,2],
-    //                     vec![0,2]]);
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![0,0],
+                        vec![1,0],
+                        vec![1,1]]);
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![2,1],
+                        vec![1,0],
+                        vec![1,1]]);
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![1,0],
+                        vec![1,3],
+                        vec![1,2]]);
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![0,0]]);
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![0,2],
+                        vec![1,0],
+                        vec![2,2],
+                        vec![0,2]]);
+    test_nanocube("/dev/null", vec![2,2],
+                  &vec![vec![0,2],
+                        vec![0,2]]);
+    test_nanocube("/dev/null", vec![2,3],
+                  &vec![vec![2,5],
+                        vec![0,6]]);
     
     //////////////////////////////////////////////////////////////////////////
-
-    // test_nanocube("out/out0.dot", vec![2,2],
-    //               &vec![vec![0,0]]);
 
     // test_nanocube("out/out0.dot", vec![2,2],
     //               &vec![vec![0,0],

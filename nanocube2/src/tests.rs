@@ -43,14 +43,14 @@ fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usiz
 
 pub fn check_nanocube_and_naivecube_equivalence()
 {
+    // let nruns = 100;
+    // let width = vec![2,3];
+    // let npoints = 2;
+    // let nranges = 5;
     let nruns = 100;
-    let width = vec![10,10];
+    let width = vec![24,2,2];
     let npoints = 100;
     let nranges = 5;
-    // let nruns = 100;
-    // let width = vec![2,2];
-    // let npoints = 4;
-    // let nranges = 5;
     let mut failed = false;
 
     let nloops = 1000;
@@ -61,6 +61,8 @@ pub fn check_nanocube_and_naivecube_equivalence()
             let mut nanocube = Nanocube::<usize>::new(width.clone());
 
             let mut summaries = Vec::new();
+            // println!("data:");
+            // println!("{:?}", data);
             for point in &data {
                 naivecube.add(1, point);
                 summaries.push(1);
