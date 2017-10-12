@@ -5,7 +5,7 @@ use std::io::Write;
 
 //////////////////////////////////////////////////////////////////////////////
 
-static DEBUG_ENABLED: bool = false;
+static DEBUG_ENABLED: bool = true;
 
 macro_rules! debug_print {
     ($str:expr $(,$params:expr)*) => (
@@ -135,17 +135,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         self.dims[dim].nodes.make_ref(node_index as isize)
     }
 
-    pub fn release_node_ref(&mut self, node_index: NodePointerType, dim: usize) {
-        let RELEASE_THRESH = 256;
-        debug_print!("release_node_ref {:?} {}", node_index, dim);
-        if node_index == -1 {
-            return;
-        }
-        self.release_list.push((node_index, dim));
-        if self.release_list.len() <= RELEASE_THRESH {
-            return;
-        }
-
+    pub fn flush_release_list(&mut self) {
         while self.release_list.len() > 0 {
             let (node_index, dim) = self.release_list.pop().unwrap();
             if dim == self.dims.len() {
@@ -170,6 +160,20 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             node.left = -1;
             node.right = -1;
             node.next = -1;
+        }
+    }
+    
+    pub fn release_node_ref(&mut self, node_index: NodePointerType, dim: usize) {
+        let RELEASE_THRESH = 256;
+        debug_print!("release_node_ref {:?} {}", node_index, dim);
+        if node_index == -1 {
+            return;
+        }
+        self.release_list.push((node_index, dim));
+        if self.release_list.len() <= RELEASE_THRESH {
+            return;
+        } else {
+            self.flush_release_list();
         }
     }
     
@@ -217,7 +221,18 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
     pub fn get_node(&self, dim: usize, node_index: NodePointerType) -> NCDimNode {
         self.dims[dim].at(node_index).clone()
     }
-    
+
+    #[inline]
+    pub fn node_is_branching(&self, dim: usize, node_index: NodePointerType) -> bool {
+        let &n = self.dims[dim].at(node_index);
+        return n.left != -1 && n.right != -1;
+    }
+
+    pub fn node_is_leaf(&self, dim: usize, node_index: NodePointerType) -> bool {
+        let &n = self.dims[dim].at(node_index);
+        return n.left == -1 && n.right == -1;
+    }
+
     pub fn merge(&mut self,
                  node_1: NodePointerType, node_2: NodePointerType,
                  dim: usize) -> NodePointerType {
@@ -251,15 +266,15 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         let node_1_index = left_merge;
         let node_2_index = right_merge;
         debug_print!("  next side of nontrivial merge");
-        let next_merge = if (node_1_index == -1) {
-            if (node_2_index == -1) {
+        let next_merge = if node_1_index == -1 {
+            if node_2_index == -1 {
                 self.merge(node_1_node.next, node_2_node.next, dim+1)
             } else {
                 self.make_node_ref_not_summary_or_null(right_merge, dim);
                 self.dims[dim].at(node_2_index).next
             }
         } else {
-            if (node_2_index == -1) {
+            if node_2_index == -1 {
                 self.make_node_ref_not_summary_or_null(left_merge, dim);
                 self.dims[dim].at(node_1_index).next
             } else {
@@ -284,15 +299,179 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         new_index as NodePointerType
     }
 
+    /*
+    The spine of an address is the sequence of nodes down the directed
+    graph of the nanocube that corresponds to the address.
+
+    make_spine finds the "spine" of a given address.
+     */
+    fn make_spine(&self,
+                  addresses: &Vec<usize>,
+                  spine: &mut Vec<(NodePointerType, usize, usize, Option<bool>)>) {
+        
+        let mut current_node_index = self.base_root;
+        let mut dim = 0;
+        let mut bit = 0;
+        let mut width = self.dims[dim].width;
+        let mut where_to_insert = if bit == width || dim == self.dims.len() {
+            None
+        } else {
+            Some(get_bit(addresses[dim], width-bit-1))
+        };
+        debug_print!("Pushing {:?} to spine",
+                     (current_node_index, dim, bit, where_to_insert));
+        spine.push((current_node_index, dim, bit, where_to_insert));
+        while current_node_index != -1 && dim != self.dims.len() {
+            let current_node = self.get_node(dim, current_node_index);
+            debug_print!("Current node: {:?}", current_node);
+            if bit == width {
+                dim = dim + 1;
+                if dim < self.dims.len() {
+                    width = self.dims[dim].width;
+                }
+                bit = 0;
+                current_node_index = current_node.next;
+            } else {
+                bit = bit + 1;
+                current_node_index = if where_to_insert.unwrap() {
+                    current_node.right
+                } else {
+                    current_node.left
+                }
+            }
+            where_to_insert = if bit == width || dim == self.dims.len() {
+                None
+            } else {
+                Some(get_bit(addresses[dim], width-bit-1))
+            };
+            debug_print!("Pushing {:?} to spine",
+                         (current_node_index, dim, bit, where_to_insert));
+            spine.push((current_node_index, dim, bit, where_to_insert));
+        }
+    }
+
+
+    /*
+    make_sparse_spine()
+    make_sparse_branching_spine()
+
+    // A "sparse" spine only includes nodes of degree 2
+    // A "non-branching" spine only uses the next-dim pointers of the leaves of
+    //   starting_address. A "branching" spine takes all next-dim pointers down
+    //   the path.
+
+     */
+
+    fn make_sparse_spine(
+        &self,
+        addresses: &Vec<usize>,
+        index: NodePointerType,
+        dim: usize,
+        spine: &mut Vec<(NodePointerType, usize, usize, Option<bool>)>)
+    {
+        let mut current_node_index = index;
+        let mut dim = dim;
+        let mut bit = 0;
+        let mut width = self.dims[dim].width;
+        let mut where_to_insert = if bit == width || dim == self.dims.len() {
+            None
+        } else {
+            Some(get_bit(addresses[dim], width-bit-1))
+        };
+        if self.node_is_branching(dim, current_node_index) {
+            debug_print!("Pushing {:?} to spine",
+                         (current_node_index, dim, bit, where_to_insert));
+            spine.push((current_node_index, dim, bit, where_to_insert));
+        }
+        while current_node_index != -1 && dim != self.dims.len() {
+            let current_node = self.get_node(dim, current_node_index);
+            debug_print!("Current node: {:?} {:?}", dim, current_node);
+            if bit == width {
+                dim = dim + 1;
+                if dim < self.dims.len() {
+                    width = self.dims[dim].width;
+                }
+                bit = 0;
+                current_node_index = current_node.next;
+            } else {
+                bit = bit + 1;
+                current_node_index = if where_to_insert.unwrap() {
+                    current_node.right
+                } else {
+                    current_node.left
+                }
+            }
+            where_to_insert = if bit == width || dim == self.dims.len() {
+                None
+            } else {
+                Some(get_bit(addresses[dim], width-bit-1))
+            };
+            if current_node_index != -1 && dim != self.dims.len() {
+                // as a special case, the sparse spine includes
+                // leaves of the last dimension (since these point
+                // to the summary table which is what we eventually want
+                // to use the sparse branching spine for)
+                if self.node_is_branching(dim, current_node_index) ||
+                    (dim == self.dims.len() - 1 &&
+                     self.node_is_leaf(dim, current_node_index)) {
+                        debug_print!("Pushing {:?} to spine",
+                                     (current_node_index, dim, bit, where_to_insert));
+                        spine.push((current_node_index, dim, bit, where_to_insert));
+                    }
+            }
+        }
+    }
+    
+    fn make_sparse_branching_spine(
+        &self,
+        addresses: &Vec<usize>,
+        spine: &mut Vec<(NodePointerType, usize, usize, Option<bool>)>)
+    {
+        self.make_sparse_spine(addresses, self.base_root, 0, spine);
+        self.make_sparse_branching_spine_rec(addresses, spine);
+    }
+    
+    fn make_sparse_branching_spine_rec(
+        &self,
+        addresses: &Vec<usize>,
+        spine: &mut Vec<(NodePointerType, usize, usize, Option<bool>)>)
+    {
+        let mut i = 0;
+        while i < spine.len() {
+            let dim = spine[i].1;
+            let index = spine[i].0;
+            if dim + 1 < self.dims.len() {
+                let node = self.get_node(dim, index);
+                debug_print!("new sparse branch: {:?} {:?}", node.next, dim+1);
+                self.make_sparse_spine(addresses, node.next, dim+1, spine);
+            }
+            i = i + 1;
+        }
+    }
+    
+    /*
+
+    insert_new(self, summary, addresses, spine): 
+
+    Inserts a new summary into the nanocube.
+
+    // the two return values are:
+    // - the index of the merged inserted node in dims[dim];
+    // - the index of the "fresh" node in dims[dim];
+
+    Implementation:
+
+    insert_new takes a mutable reference to a spine vector so that we
+    avoid reallocating the spine at every call. Profiling showed this
+    helps.
+
+     */
     #[inline(never)]
     pub fn insert_new(&mut self,
                       summary: Summary,
                       addresses: &Vec<usize>,
                       spine: &mut Vec<(NodePointerType, usize, usize, Option<bool>)>) ->
         (NodePointerType, NodePointerType)
-    // the two return values are:
-    // - the index of the merged inserted node in dims[dim];
-    // - the index of the "fresh" node in dims[dim];
     {
         // - first, we traverse down the path of existing nodes, collecting their addresses
         //     (call this the "spine")
@@ -792,6 +971,31 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             self.release_node_ref(orphan_node, 0);
         }
     }
+
+    /*
+     update(self, summary, addresses)
+
+     A faster version of add() that can be used when addresses point
+     to an already-existing summary in the nanocube. This function
+     avoid creating any new structure, and simply updates the summary
+     vector appropriately.
+
+     THIS METHOD IS NOT FINISHED
+
+     */
+    pub fn update(&mut self,
+                  summary: Summary,
+                  addresses: &Vec<usize>)
+    {
+        debug_print!("Will update. {:?}", addresses);
+        let mut spine = Vec::with_capacity(64);
+        self.make_spine(addresses, &mut spine);
+        // askdjhfaklsjdfhakls FIXME FIXME FIXME THIS NEEDS MORE THAN JUST THE "ROOT SPINE"
+        // WE NEED TO FIND THE "SPINE BRANCHES" AS WELL. THE SPINE BRANCHES ARE THE SPINES
+        // OF THE NEXT NODES OF EACH INTERNAL BRANCHING NODE IN THE ROOT SPINE.
+        
+    }
+    
     
     pub fn add(&mut self,
                summary: Summary,
@@ -868,7 +1072,8 @@ fn print_dot_ncdim<W: std::io::Write>(w: &mut W, dim: &NCDim, d: usize, draw_nex
             -1 => format!("{}", "null"),
             s => format!("{}", s)
         };
-        writeln!(w, "  {} [label=\"{}:{} [{}]\"];", node_id(i, d), i, next, dim.nodes.ref_counts[i]).expect("Can't write to w");;
+        // writeln!(w, "  {} [label=\"{}:{} [{}]\"];", node_id(i, d), i, next, dim.nodes.ref_counts[i]).expect("Can't write to w");;
+        writeln!(w, "  {} [label=\"{}:{}\"];", node_id(i, d), i, next).expect("Can't write to w");;
     }
     writeln!(w, "}}").expect("Can't write to w");;
     for i in 0..dim.nodes.values.len() {
@@ -910,15 +1115,25 @@ pub fn write_txt_to_disk<Summary: std::fmt::Debug>(name: &str, nc: &Nanocube<Sum
     for ncdim in nc.dims.iter() {
         writeln!(f, "--------").expect("Can't write to w");
         for (i, node) in ncdim.nodes.values.iter().enumerate() {
-            writeln!(f, "{:?} {:?} {:?} [{:?}]", node.left, node.right, node.next,
-                     ncdim.nodes.ref_counts[i]).expect("Can't write to w");
+            writeln!(f, "{:?} {:?} {:?}", node.left, node.right, node.next).expect("Can't write to w");
+            // writeln!(f, "{:?} {:?} {:?} [{:?}]", node.left, node.right, node.next,
+            //          ncdim.nodes.ref_counts[i]).expect("Can't write to w");
         }
     }
     writeln!(f, "Summaries").expect("Can't write to w");
     for (i, s) in nc.summaries.values.iter().enumerate() {
-        writeln!(f, "{:?} {:?} [{:?}]", i, s, nc.summaries.ref_counts[i]).expect("Can't write to w");;
+        writeln!(f, "{:?} {:?}", i, s).expect("Can't write to w");;
+        // writeln!(f, "{:?} {:?} [{:?}]", i, s, nc.summaries.ref_counts[i]).expect("Can't write to w");;
     }
     Ok(())
+}
+
+pub fn make_nanocube(dims: Vec<usize>, data: &Vec<Vec<usize>>) -> Nanocube<usize> {
+    let mut nc = Nanocube::<usize>::new(dims);
+    for d in data {
+        nc.add(1, d);
+    }
+    nc
 }
 
 pub fn test_nanocube(out: &str, dims: Vec<usize>, data: &Vec<Vec<usize>>) {
@@ -926,15 +1141,38 @@ pub fn test_nanocube(out: &str, dims: Vec<usize>, data: &Vec<Vec<usize>>) {
     for d in data {
         nc.add(1, d);
     }
-    // write_txt_to_disk("/dev/stdout", &nc).expect("Couldn't write");
+    nc.flush_release_list();
     write_dot_to_disk(out, &nc).expect("Couldn't write");
 }
 
+fn write_animation(path_prefix: &str, dims: Vec<usize>, data: &Vec<Vec<usize>>) {
+    let mut nc = Nanocube::<usize>::new(dims);
+    for (i, d) in data.iter().enumerate() {
+        nc.add(1, d);
+        nc.flush_release_list();
+        write_dot_to_disk(&format!("{}{}.dot", path_prefix, i), &nc).expect("Couldn't write");
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 pub fn smoke_test()
 {
-    // test_nanocube("out/out1.dot", vec![2,2],
-    //               &vec![vec![0,0],
-    //                     vec![3,3]]);
+    write_animation("out/example1-", vec![3, 3], &vec![vec![0, 0],
+                                                       vec![0, 2],
+                                                       vec![6, 4],
+                                                       vec![6, 6]]);
+    
+    write_animation("out/example3-", vec![3, 3], &vec![vec![0, 0],
+                                                       vec![0, 2],
+                                                       vec![6, 4],
+                                                       vec![6, 2]]);
+    
+    write_animation("out/example2-", vec![3, 3], &vec![vec![0, 0],
+                                                       vec![0, 2],
+                                                       vec![6, 4],
+                                                       vec![6, 6]]);
+
     // test_nanocube("out/out2.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![1,3]]);
@@ -1021,4 +1259,33 @@ pub fn smoke_test()
     //               &vec![vec![1,0],
     //                     vec![1,3]]);
 
+    //////////////////////////////////////////////////////////////////////////
+    // self.update() smoke tests
+    
+    {
+        let mut nc = make_nanocube(vec![3, 3],
+                                   &vec![vec![0, 0],
+                                         vec![0, 2],
+                                         vec![6, 4],
+                                         vec![6, 6]]);
+        nc.flush_release_list();
+        write_dot_to_disk("out/spine-test.dot", &nc).expect("couldn't write");
+        {
+            let mut spine = Vec::with_capacity(64);
+            nc.make_spine(&vec![6, 6], &mut spine);
+            debug_print!("{:?}", spine);
+        }
+        println!("-----");
+        {
+            let mut spine = Vec::with_capacity(64);
+            nc.make_sparse_spine(&vec![6, 6], nc.base_root, 0, &mut spine);
+            debug_print!("{:?}", spine);
+        }
+        println!("-----");
+        {
+            let mut spine = Vec::with_capacity(64);
+            nc.make_sparse_branching_spine(&vec![6, 6], &mut spine);
+            debug_print!("{:?}", spine);
+        }
+    }
 }
