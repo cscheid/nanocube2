@@ -42,7 +42,12 @@ enum WhereToInsert {
 pub struct NCDimNode {
     pub left: NodePointerType,
     pub right: NodePointerType,
-    pub next: NodePointerType
+    pub next: NodePointerType,
+
+    // le sigh. It seems that the most convenient way to speed up
+    // a lot of traversals is to flag some of the nodes along the way.
+    // this is going to make concurrency really hard :/
+    pub flags: i32
 }
 
 pub struct NCDim {
@@ -192,7 +197,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     let node = NCDimNode {
                         left: -1,
                         right: -1,
-                        next: next_node
+                        next: next_node,
+                        flags: 0
                     };
                     refine_node = self.dims[d].nodes.insert(node) as NodePointerType;
                     debug_print!("insert node {:?} at {},{}",
@@ -203,7 +209,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     let node = NCDimNode {
                         left:  if where_to_insert { -1 } else { refine_node },
                         right: if where_to_insert { refine_node } else { -1 },
-                        next: next_node
+                        next: next_node,
+                        flags: 0
                     };
                     self.make_node_ref_not_summary_or_null(refine_node, d);
                     self.make_node_ref_not_null(next_node, d+1);
@@ -231,6 +238,19 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
     pub fn node_is_leaf(&self, dim: usize, node_index: NodePointerType) -> bool {
         let &n = self.dims[dim].at(node_index);
         return n.left == -1 && n.right == -1;
+    }
+
+    pub fn node_is_unmarked(&self, dim: usize, node_index: NodePointerType) -> bool {
+        let &n = self.dims[dim].at(node_index);
+        return n.flags == 0;
+    }
+
+    pub fn mark_node(&mut self, dim: usize, node_index: NodePointerType) {
+        self.dims[dim].at_mut(node_index).flags = 1;
+    }
+
+    pub fn unmark_node(&mut self, dim: usize, node_index: NodePointerType) {
+        self.dims[dim].at_mut(node_index).flags = 0;
     }
 
     pub fn merge(&mut self,
@@ -290,7 +310,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         let new_node = NCDimNode {
             left: left_merge,
             right: right_merge,
-            next: next_merge
+            next: next_merge,
+            flags: 0
         };
         self.make_node_ref_not_null(next_merge, dim+1);
         let new_index = self.dims[dim].nodes.insert(new_node);
@@ -360,6 +381,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
     //   starting_address. A "branching" spine takes all next-dim pointers down
     //   the path.
 
+    // A branching spine
+
      */
 
     fn make_sparse_spine(
@@ -406,7 +429,9 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             } else {
                 Some(get_bit(addresses[dim], width-bit-1))
             };
-            if current_node_index != -1 && dim != self.dims.len() {
+            if current_node_index != -1 &&
+                dim != self.dims.len()
+            {
                 // as a special case, the sparse spine includes
                 // leaves of the last dimension (since these point
                 // to the summary table which is what we eventually want
@@ -421,21 +446,83 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             }
         }
     }
-    
-    fn make_sparse_branching_spine(
-        &self,
+
+    // This is the same as above, but we only push unmarked nodes (and
+    // then we mark them.) make_branching_spine needs the marks to avoid
+    // revisiting nodes.
+    fn make_sparse_spine_marking(
+        &mut self,
         addresses: &Vec<usize>,
+        index: NodePointerType,
+        dim: usize,
         spine: &mut Vec<(NodePointerType, usize, usize, Option<bool>)>)
     {
-        self.make_sparse_spine(addresses, self.base_root, 0, spine);
-        self.make_sparse_branching_spine_rec(addresses, spine);
+        let mut current_node_index = index;
+        let mut dim = dim;
+        let mut bit = 0;
+        let mut width = self.dims[dim].width;
+        let mut where_to_insert = if bit == width || dim == self.dims.len() {
+            None
+        } else {
+            Some(get_bit(addresses[dim], width-bit-1))
+        };
+        if self.node_is_branching(dim, current_node_index) && self.node_is_unmarked(dim, current_node_index) {
+            self.mark_node(dim, current_node_index);
+            debug_print!("Pushing {:?} to spine",
+                         (current_node_index, dim, bit, where_to_insert));
+            spine.push((current_node_index, dim, bit, where_to_insert));
+        }
+        while current_node_index != -1 && dim != self.dims.len() {
+            let current_node = self.get_node(dim, current_node_index);
+            debug_print!("Current node: {:?} {:?}", dim, current_node);
+            if bit == width {
+                dim = dim + 1;
+                if dim < self.dims.len() {
+                    width = self.dims[dim].width;
+                }
+                bit = 0;
+                current_node_index = current_node.next;
+            } else {
+                bit = bit + 1;
+                current_node_index = if where_to_insert.unwrap() {
+                    current_node.right
+                } else {
+                    current_node.left
+                }
+            }
+            where_to_insert = if bit == width || dim == self.dims.len() {
+                None
+            } else {
+                Some(get_bit(addresses[dim], width-bit-1))
+            };
+            if current_node_index != -1 &&
+                dim != self.dims.len() &&
+                self.node_is_unmarked(dim, current_node_index)
+            {
+                // as a special case, the sparse spine includes
+                // leaves of the last dimension (since these point
+                // to the summary table which is what we eventually want
+                // to use the sparse branching spine for)
+                if self.node_is_branching(dim, current_node_index) ||
+                    (dim == self.dims.len() - 1 &&
+                     self.node_is_leaf(dim, current_node_index)) {
+                        self.mark_node(dim, current_node_index);
+                        debug_print!("Pushing {:?} to spine",
+                                     (current_node_index, dim, bit, where_to_insert));
+                        spine.push((current_node_index, dim, bit, where_to_insert));
+                    }
+            }
+        }
     }
     
-    fn make_sparse_branching_spine_rec(
-        &self,
+    fn make_sparse_branching_spine(
+        &mut self,
         addresses: &Vec<usize>,
         spine: &mut Vec<(NodePointerType, usize, usize, Option<bool>)>)
     {
+        let spine_beg = spine.len();
+        let root = self.base_root;
+        self.make_sparse_spine_marking(addresses, root, 0, spine);
         let mut i = 0;
         while i < spine.len() {
             let dim = spine[i].1;
@@ -443,12 +530,15 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             if dim + 1 < self.dims.len() {
                 let node = self.get_node(dim, index);
                 debug_print!("new sparse branch: {:?} {:?}", node.next, dim+1);
-                self.make_sparse_spine(addresses, node.next, dim+1, spine);
+                self.make_sparse_spine_marking(addresses, node.next, dim+1, spine);
             }
             i = i + 1;
         }
+        for i in spine_beg..spine.len() {
+            self.unmark_node(spine[i].1, spine[i].0);
+        }
     }
-    
+   
     /*
 
     insert_new(self, summary, addresses, spine): 
@@ -569,7 +659,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: -1,
                         right: -1,
-                        next: result.0 // self.get_node(dim, result.0).next
+                        next: result.0, // self.get_node(dim, result.0).next
+                        flags: 0
                     }
                 },
                 (a, -1, Some(false)) => {
@@ -578,7 +669,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: a_union_c,
                         right: -1,
-                        next: self.get_node(dim, a_union_c).next
+                        next: self.get_node(dim, a_union_c).next,
+                        flags: 0
                     }
                 },
                 (a, -1, Some(true)) => {
@@ -590,7 +682,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: current_node.left,
                         right: c,
-                        next: an_union_cn
+                        next: an_union_cn,
+                        flags: 0
                     }
                 },
                 (a, -1, None) => {
@@ -606,7 +699,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: c,
                         right: current_node.right,
-                        next: bn_union_cn
+                        next: bn_union_cn,
+                        flags: 0
                     }
                 },
                 (-1, b, Some(true)) => {
@@ -615,7 +709,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: -1,
                         right: b_union_c,
-                        next: self.get_node(dim, b_union_c).next
+                        next: self.get_node(dim, b_union_c).next,
+                        flags: 0
                     }
                 },
                 (-1, b, None) => {
@@ -658,7 +753,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: a_union_c,
                         right: current_node.right,
-                        next: an_union_bn_union_cn
+                        next: an_union_bn_union_cn,
+                        flags: 0
                     }
                 },
                 (a, b, Some(true)) => {
@@ -678,7 +774,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: current_node.left,
                         right: b_union_c,
-                        next: an_union_bn_union_cn
+                        next: an_union_bn_union_cn,
+                        flags: 0
                     }
                 },
                 (a, b, None) => {
@@ -700,7 +797,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: result.1,
                         right: -1,
-                        next: self.get_node(dim, result.1).next
+                        next: self.get_node(dim, result.1).next,
+                        flags: 0
                     }
                 },
                 Some(true) => {
@@ -710,7 +808,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: -1,
                         right: result.1,
-                        next: n
+                        next: n,
+                        flags: 0
                     }
                 },
                 None => {
@@ -718,7 +817,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     NCDimNode {
                         left: -1,
                         right: -1,
-                        next: result.1
+                        next: result.1,
+                        flags: 0
                     }
                 }
             };
@@ -784,7 +884,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: -1,
                     right: -1,
-                    next: result.0 // self.get_node(dim, result.0).next
+                    next: result.0, // self.get_node(dim, result.0).next
+                    flags: 0
                 }
             },
             (a, -1, Some(false)) => {
@@ -793,7 +894,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: a_union_c,
                     right: -1,
-                    next: self.get_node(dim, a_union_c).next
+                    next: self.get_node(dim, a_union_c).next,
+                    flags: 0                    
                 }
             },
             (a, -1, Some(true)) => {
@@ -805,7 +907,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: current_node.left,
                     right: c,
-                    next: an_union_cn
+                    next: an_union_cn,
+                    flags: 0
                 }
             },
             (a, -1, None) => {
@@ -821,7 +924,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: c,
                     right: current_node.right,
-                    next: bn_union_cn
+                    next: bn_union_cn,
+                    flags: 0
                 }
             },
             (-1, b, Some(true)) => {
@@ -830,7 +934,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: -1,
                     right: b_union_c,
-                    next: self.get_node(dim, b_union_c).next
+                    next: self.get_node(dim, b_union_c).next,
+                    flags: 0
                 }
             },
             (-1, b, None) => {
@@ -873,7 +978,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: a_union_c,
                     right: current_node.right,
-                    next: an_union_bn_union_cn
+                    next: an_union_bn_union_cn,
+                    flags: 0
                 }
             },
             (a, b, Some(true)) => {
@@ -893,7 +999,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: current_node.left,
                     right: b_union_c,
-                    next: an_union_bn_union_cn
+                    next: an_union_bn_union_cn,
+                    flags: 0
                 }
             },
             (a, b, None) => {
@@ -917,7 +1024,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: result.1,
                     right: -1,
-                    next: self.get_node(dim, result.1).next
+                    next: self.get_node(dim, result.1).next,
+                    flags: 0
                 }
             },
             Some(true) => {
@@ -927,7 +1035,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: -1,
                     right: result.1,
-                    next: n
+                    next: n,
+                    flags: 0
                 }
             },
             None => {
@@ -935,7 +1044,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 NCDimNode {
                     left: -1,
                     right: -1,
-                    next: result.1
+                    next: result.1,
+                    flags: 0
                 }
             }
         };
@@ -1278,7 +1388,8 @@ pub fn smoke_test()
         println!("-----");
         {
             let mut spine = Vec::with_capacity(64);
-            nc.make_sparse_spine(&vec![6, 6], nc.base_root, 0, &mut spine);
+            let root = nc.base_root;
+            nc.make_sparse_spine(&vec![6, 6], root, 0, &mut spine);
             debug_print!("{:?}", spine);
         }
         println!("-----");
