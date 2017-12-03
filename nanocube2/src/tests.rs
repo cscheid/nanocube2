@@ -41,7 +41,8 @@ fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usiz
     result
 }
 
-pub fn check_nanocube_and_naivecube_equivalence()
+#[test]
+pub fn nanocube_is_equivalent_to_naivecube()
 {
     // let nruns = 100;
     // let width = vec![2,3];
@@ -52,7 +53,7 @@ pub fn check_nanocube_and_naivecube_equivalence()
     let npoints = 100;
     let nranges = 5;
 
-    let nloops = 1000;
+    let nloops = 1;
     let sec = timeit_loops!(nloops, {
         for _ in 0..nruns {
             let data = generate_random_dataset(&width, npoints);
@@ -83,7 +84,6 @@ pub fn check_nanocube_and_naivecube_equivalence()
                     nanocube::write_dot_to_disk("out/bad_nc.dot", &nanocube)
                         .expect("internal error");
                     println!("{:?}", nanocube.summaries.values);
-                    std::process::exit(1);
                 }
             }
         }
@@ -93,9 +93,4 @@ pub fn check_nanocube_and_naivecube_equivalence()
              nloops * nruns * npoints,
              (nloops as f64) * sec,
              ((nruns * npoints) as f64) / sec);
-}
-
-pub fn run()
-{
-    check_nanocube_and_naivecube_equivalence();
 }

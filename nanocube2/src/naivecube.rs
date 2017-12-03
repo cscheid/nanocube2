@@ -48,7 +48,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Cube<Summary> for Naivecube<Summary> 
     }
 }
 
-pub fn smoke_test()
+#[test]
+pub fn it_doesnt_smoke()
 {
     let mut nc1 = Naivecube::new(vec![2, 2]);
     nc1.add(1, &vec![0, 0]);

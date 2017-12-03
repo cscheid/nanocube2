@@ -1265,7 +1265,8 @@ fn write_animation(path_prefix: &str, dims: Vec<usize>, data: &Vec<Vec<usize>>) 
 
 //////////////////////////////////////////////////////////////////////////////
 
-pub fn smoke_test()
+#[test]
+pub fn it_doesnt_smoke()
 {
     write_animation("out/example1-", vec![3, 3], &vec![vec![0, 0],
                                                        vec![0, 2],

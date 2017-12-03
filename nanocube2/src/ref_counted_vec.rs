@@ -143,7 +143,8 @@ impl <T> RefCountedVec<T> {
 
 //////////////////////////////////////////////////////////////////////////////
 
-pub fn smoke_test()
+#[test]
+fn it_doesnt_smoke()
 {
     let mut v = RefCountedVec::<i32>::new();
     v.insert(1);
@@ -155,7 +156,6 @@ pub fn smoke_test()
     println!("This is our refcountedvec: {:?}", v);
     v.release_ref(0);
     println!("This is our refcountedvec: {:?}", v);
-
     println!("Value: {}", v.at(0));
     {
         *v.at_mut(0) = 3;

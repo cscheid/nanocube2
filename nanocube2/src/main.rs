@@ -20,17 +20,5 @@ fn index() -> &'static str {
 }
 
 fn main() {
-    // ref_counted_vec::smoke_test();
-    nanocube::smoke_test();
-    // naivecube::smoke_test();
-    // tests::run();
-
     rocket::ignite().mount("/", routes![index]).launch();
 }
-
-// fn main() {
-//     // ref_counted_vec::smoke_test();
-//     nanocube::smoke_test();
-//     // naivecube::smoke_test();
-//     // tests::run();
-// }
