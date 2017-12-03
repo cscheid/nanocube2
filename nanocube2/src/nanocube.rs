@@ -152,7 +152,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                 continue;
             }
             debug_print!("Node {},{} is free", dim, node_index);
-            let mut node = self.dims[dim].at_mut(node_index);
+            let node = self.dims[dim].at_mut(node_index);
             if node.left >= 0 {
                 self.release_list.push((node.left, dim));
             }
@@ -167,15 +167,16 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             node.next = -1;
         }
     }
-    
+
     pub fn release_node_ref(&mut self, node_index: NodePointerType, dim: usize) {
-        let RELEASE_THRESH = 256;
+        // FIXME I think this is probably better handled as a global parameter elsewhere, but..
+        let release_thresh = 256;
         debug_print!("release_node_ref {:?} {}", node_index, dim);
         if node_index == -1 {
             return;
         }
         self.release_list.push((node_index, dim));
-        if self.release_list.len() <= RELEASE_THRESH {
+        if self.release_list.len() <= release_thresh {
             return;
         } else {
             self.flush_release_list();
@@ -569,8 +570,6 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         // - finally, we walk back up the spine, merging the fresh insertion
         //   into it
         // let mut spine = Vec::<(NodePointerType, usize, usize, Option<bool>)>::with_capacity(128);
-        let mut merged_insert = -1;
-        let mut new_insert = -1;
         
         // "- first, we traverse ..."
         let mut current_node_index = self.base_root;
@@ -614,7 +613,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         }
 
         // "- then, we call insert_fresh_node ..."
-        let (current_node_index, dim, bit, where_to_insert) = spine.pop().unwrap();
+        let (current_node_index, dim, bit, _where_to_insert) = spine.pop().unwrap();
         let mut result = if current_node_index == -1 {
             debug_print!("inserting fresh node {:?} {} {} at {:?}",
                          addresses, dim, bit, current_node_index);
@@ -629,8 +628,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             debug_assert!(dim == self.dims.len());
             debug_assert!(bit == 0);
             let merged_summary = summary.mapply(&self.summaries.values[current_node_index as usize]);
-            new_insert = self.summaries.insert(summary) as NodePointerType;
-            merged_insert = self.summaries.insert(merged_summary) as NodePointerType;
+            let new_insert = self.summaries.insert(summary) as NodePointerType;
+            let merged_insert = self.summaries.insert(merged_summary) as NodePointerType;
             debug_print!("  new: {}", new_insert);
             debug_print!("  merged: {}", merged_insert);
             (merged_insert, new_insert)
@@ -644,7 +643,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             //  - fresh_insert holds a reference to singleton inserted item so far,
             //  - top of spine holds the first node that needs merging.
             
-            let (current_node_index, dim, bit, where_to_insert) = spine.pop().unwrap();
+            let (current_node_index, dim, _bit, where_to_insert) = spine.pop().unwrap();
             debug_assert!(current_node_index != -1);
             let current_node = self.get_node(dim, current_node_index);
 
@@ -663,7 +662,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                         flags: 0
                     }
                 },
-                (a, -1, Some(false)) => {
+                (_a, -1, Some(false)) => {
                     debug_print!("case 1");
                     let a_union_c = result.0;
                     NCDimNode {
@@ -673,7 +672,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                         flags: 0
                     }
                 },
-                (a, -1, Some(true)) => {
+                (_a, -1, Some(true)) => {
                     debug_print!("case 2");
                     let c = result.0;
                     let n1 = self.get_node(dim, current_node.left).next;
@@ -686,11 +685,11 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                         flags: 0
                     }
                 },
-                (a, -1, None) => {
+                (_a, -1, None) => {
                     println!("(a, -1, None) PANIC");
                     unreachable!();
                 }
-                (-1, b, Some(false)) => {
+                (-1, _b, Some(false)) => {
                     debug_print!("case 3");
                     let c = result.0;
                     let n1 = self.get_node(dim, current_node.right).next;
@@ -703,7 +702,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                         flags: 0
                     }
                 },
-                (-1, b, Some(true)) => {
+                (-1, _b, Some(true)) => {
                     debug_print!("case 4");
                     let b_union_c = result.0;
                     NCDimNode {
@@ -713,11 +712,11 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                         flags: 0
                     }
                 },
-                (-1, b, None) => {
+                (-1, _b, None) => {
                     println!("(-1, b, None) PANIC");
                     unreachable!();
                 },
-                (a, b, Some(false)) => {
+                (_a, _b, Some(false)) => {
                     debug_print!("case 5");
                     let a_union_c = result.0;
                     let c = result.1;
@@ -757,7 +756,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                         flags: 0
                     }
                 },
-                (a, b, Some(true)) => {
+                (_a, _b, Some(true)) => {
                     debug_print!("case 6");
                     // similar logic as the one explained above.
                     
@@ -778,7 +777,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                         flags: 0
                     }
                 },
-                (a, b, None) => {
+                (_a, _b, None) => {
                     println!("(a, b, None) PANIC");
                     unreachable!();
                 }
@@ -888,7 +887,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     flags: 0
                 }
             },
-            (a, -1, Some(false)) => {
+            (_a, -1, Some(false)) => {
                 debug_print!("case 1");
                 let a_union_c = result.0;
                 NCDimNode {
@@ -898,7 +897,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     flags: 0                    
                 }
             },
-            (a, -1, Some(true)) => {
+            (_a, -1, Some(true)) => {
                 debug_print!("case 2");
                 let c = result.0;
                 let n1 = self.get_node(dim, current_node.left).next;
@@ -911,11 +910,11 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     flags: 0
                 }
             },
-            (a, -1, None) => {
+            (_a, -1, None) => {
                 println!("(a, -1, None) PANIC");
                 unreachable!();
             }
-            (-1, b, Some(false)) => {
+            (-1, _b, Some(false)) => {
                 debug_print!("case 3");
                 let c = result.0;
                 let n1 = self.get_node(dim, current_node.right).next;
@@ -928,7 +927,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     flags: 0
                 }
             },
-            (-1, b, Some(true)) => {
+            (-1, _b, Some(true)) => {
                 debug_print!("case 4");
                 let b_union_c = result.0;
                 NCDimNode {
@@ -938,11 +937,11 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     flags: 0
                 }
             },
-            (-1, b, None) => {
+            (-1, _b, None) => {
                 println!("(-1, b, None) PANIC");
                 unreachable!();
             },
-            (a, b, Some(false)) => {
+            (_a, _b, Some(false)) => {
                 debug_print!("case 5");
                 let a_union_c = result.0;
                 let c = result.1;
@@ -982,7 +981,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     flags: 0
                 }
             },
-            (a, b, Some(true)) => {
+            (_a, _b, Some(true)) => {
                 debug_print!("case 6");
                 // similar logic as the one explained above.
                 
@@ -1003,7 +1002,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
                     flags: 0
                 }
             },
-            (a, b, None) => {
+            (_a, _b, None) => {
                 println!("(a, b, None) PANIC");
                 unreachable!();
             }
@@ -1170,7 +1169,7 @@ fn node_id(i: usize, dim: usize) -> String {
     format!("\"{}_{}\"", i, dim)
 }
 
-fn print_dot_ncdim<W: std::io::Write>(w: &mut W, dim: &NCDim, d: usize, draw_next: bool) -> Result<(), std::io::Error>
+fn print_dot_ncdim<W: std::io::Write>(w: &mut W, dim: &NCDim, d: usize, _draw_next: bool) -> Result<(), std::io::Error>
 {
     writeln!(w, " subgraph cluster_{} {{", d).expect("Can't write to w");
     writeln!(w, " label=\"Dim. {}\";", d).expect("Can't write to w");
@@ -1224,7 +1223,7 @@ pub fn write_txt_to_disk<Summary: std::fmt::Debug>(name: &str, nc: &Nanocube<Sum
         .expect("cannot create file");
     for ncdim in nc.dims.iter() {
         writeln!(f, "--------").expect("Can't write to w");
-        for (i, node) in ncdim.nodes.values.iter().enumerate() {
+        for node in ncdim.nodes.values.iter() {
             writeln!(f, "{:?} {:?} {:?}", node.left, node.right, node.next).expect("Can't write to w");
             // writeln!(f, "{:?} {:?} {:?} [{:?}]", node.left, node.right, node.next,
             //          ncdim.nodes.ref_counts[i]).expect("Can't write to w");

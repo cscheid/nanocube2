@@ -51,7 +51,6 @@ pub fn check_nanocube_and_naivecube_equivalence()
     let width = vec![24,2,2];
     let npoints = 100;
     let nranges = 5;
-    let mut failed = false;
 
     let nloops = 1000;
     let sec = timeit_loops!(nloops, {
@@ -84,7 +83,6 @@ pub fn check_nanocube_and_naivecube_equivalence()
                     nanocube::write_dot_to_disk("out/bad_nc.dot", &nanocube)
                         .expect("internal error");
                     println!("{:?}", nanocube.summaries.values);
-                    failed = true;
                     std::process::exit(1);
                 }
             }
