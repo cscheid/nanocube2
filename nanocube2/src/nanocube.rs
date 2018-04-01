@@ -1182,16 +1182,16 @@ fn print_dot_ncdim<W: std::io::Write>(w: &mut W, dim: &NCDim, d: usize, _draw_ne
             s => format!("{}", s)
         };
         // writeln!(w, "  {} [label=\"{}:{} [{}]\"];", node_id(i, d), i, next, dim.nodes.ref_counts[i]).expect("Can't write to w");;
-        writeln!(w, "  {} [label=\"{}:{}\"];", node_id(i, d), i, next).expect("Can't write to w");;
+        writeln!(w, "  {} [label=\"{}:{}\"];", node_id(i, d), i, next).expect("Can't write to w");
     }
     writeln!(w, "}}").expect("Can't write to w");;
     for i in 0..dim.nodes.values.len() {
         let node = &dim.nodes.values[i];
         if node.left >= 0 {
-            writeln!(w, "  {} -> {} [label=\"0\"];", node_id(i, d), node_id(node.left as usize, d)).expect("Can't write to w");;
+            writeln!(w, "  {} -> {} [label=\"0\"];", node_id(i, d), node_id(node.left as usize, d)).expect("Can't write to w");
         }
         if node.right >= 0 {
-            writeln!(w, "  {} -> {} [label=\"1\"];", node_id(i, d), node_id(node.right as usize, d)).expect("Can't write to w");;
+            writeln!(w, "  {} -> {} [label=\"1\"];", node_id(i, d), node_id(node.right as usize, d)).expect("Can't write to w");
         }
     }
     Ok(())
