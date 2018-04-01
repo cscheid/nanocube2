@@ -1,6 +1,8 @@
 use cube::Monoid;
 use ref_counted_vec::RefCountedVec;
 use std;
+use std::fs;
+use std::path::Path;
 use std::io::Write;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1265,48 +1267,66 @@ fn write_animation(path_prefix: &str, dims: Vec<usize>, data: &Vec<Vec<usize>>) 
 
 //////////////////////////////////////////////////////////////////////////////
 
+pub fn ensure_dir(path: &std::path::Path) -> std::io::Result<()>
+{
+    match std::fs::metadata(path) {
+        Err(e) => {
+            std::fs::create_dir(path)
+        }
+        Ok(attr) => {
+            if attr.is_dir() {
+                Ok(())
+            } else {
+                Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "path exists"))
+            }
+        }
+    }
+}
+
 #[test]
 pub fn it_doesnt_smoke()
 {
-    write_animation("out/example1-", vec![3, 3], &vec![vec![0, 0],
+    ensure_dir(Path::new("test-output")).expect("path exists, bailing");
+    
+    write_animation("test-output/example1-", vec![3, 3], &vec![vec![0, 0],
                                                        vec![0, 2],
                                                        vec![6, 4],
                                                        vec![6, 6]]);
     
-    write_animation("out/example3-", vec![3, 3], &vec![vec![0, 0],
+    write_animation("test-output/example3-", vec![3, 3], &vec![vec![0, 0],
                                                        vec![0, 2],
                                                        vec![6, 4],
                                                        vec![6, 2]]);
     
-    write_animation("out/example2-", vec![3, 3], &vec![vec![0, 0],
+    write_animation("test-output/example2-", vec![3, 3], &vec![vec![0, 0],
                                                        vec![0, 2],
                                                        vec![6, 4],
                                                        vec![6, 6]]);
 
-    // test_nanocube("out/out2.dot", vec![2,2],
+    // test_nanocube("test-output/out2.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![1,3]]);
-    // test_nanocube("out/out3.dot", vec![2,2],
+    // test_nanocube("test-output/out3.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![0,0],
     //                     vec![0,0]]);
-    // test_nanocube("out/out4.dot", vec![2,2],
+    // test_nanocube("test-output/out4.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![0,3]]);
-    // test_nanocube("out/out5.dot", vec![2,2],
+    // test_nanocube("test-output/out5.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![0,1]]);
-    // test_nanocube("out/out.dot", vec![2,2],
+    // test_nanocube("test-output/out.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![0,0]]);
-    // test_nanocube("out/out1.dot", vec![2,2],
+    // test_nanocube("test-output/out1.dot", vec![2,2],
     //               &vec![vec![2,1]]);
-    // test_nanocube("out/out2.dot", vec![2,2],
+    // test_nanocube("test-output/out2.dot", vec![2,2],
     //               &vec![vec![2,1],
     //                     vec![1,0]]);
-    // test_nanocube("out/out0.dot", vec![2,2],
+    // test_nanocube("test-output/out0.dot", vec![2,2],
     //               &vec![vec![0,0]]);
-    // test_nanocube("out/out1.dot", vec![2,2],
+    // test_nanocube("test-output/out1.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![3,3]]);
 
@@ -1341,31 +1361,31 @@ pub fn it_doesnt_smoke()
     
     //////////////////////////////////////////////////////////////////////////
 
-    // test_nanocube("out/out0.dot", vec![2,2],
+    // test_nanocube("test-output/out0.dot", vec![2,2],
     //               &vec![vec![0,0],
     //                     vec![0,0]]);
 
-    // test_nanocube("out/out0.dot", vec![2,2],
+    // test_nanocube("test-output/out0.dot", vec![2,2],
     //               &vec![vec![0,3]]);
 
-    // test_nanocube("out/out1.dot", vec![2,2],
+    // test_nanocube("test-output/out1.dot", vec![2,2],
     //               &vec![vec![0,3],
     //                     vec![2,3]]);
 
-    // test_nanocube("out/out2.dot", vec![2,2],
+    // test_nanocube("test-output/out2.dot", vec![2,2],
     //               &vec![vec![0,3],
     //                     vec![2,3],
     //                     vec![2,3]]);
 
-    // test_nanocube("out/out3.dot", vec![2,2],
+    // test_nanocube("test-output/out3.dot", vec![2,2],
     //               &vec![vec![0,3],
     //                     vec![2,3],
     //                     vec![2,3],
     //                     vec![0,3]]);
     
-    // test_nanocube("out/out0.dot", vec![2,2],
+    // test_nanocube("test-output/out0.dot", vec![2,2],
     //               &vec![vec![1,0]]);
-    // test_nanocube("out/out1.dot", vec![2,2],
+    // test_nanocube("test-output/out1.dot", vec![2,2],
     //               &vec![vec![1,0],
     //                     vec![1,3]]);
 
@@ -1379,7 +1399,7 @@ pub fn it_doesnt_smoke()
                                          vec![6, 4],
                                          vec![6, 6]]);
         nc.flush_release_list();
-        write_dot_to_disk("out/spine-test.dot", &nc).expect("couldn't write");
+        write_dot_to_disk("test-output/spine-test.dot", &nc).expect("couldn't write");
         {
             let mut spine = Vec::with_capacity(64);
             nc.make_spine(&vec![6, 6], &mut spine);
