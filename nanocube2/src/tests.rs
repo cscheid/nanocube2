@@ -41,6 +41,20 @@ fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usiz
     result
 }
 
+fn partition_data(data: &[Vec<usize>], n: usize) -> Vec<&[Vec<usize>]>
+{
+    let mut result = Vec::new();
+
+    for i in 0..n {
+        let start = data.len() * i / n;
+        let end = data.len() * (i + 1) / n;
+        result.push(&data[start..end]);
+    }
+
+    debug_assert!(result.len() == n);
+    result
+}
+
 #[test]
 pub fn nanocube_is_equivalent_to_naivecube()
 {
@@ -67,7 +81,7 @@ pub fn nanocube_is_equivalent_to_naivecube()
                 naivecube.add(1, point);
                 summaries.push(1);
             }
-            nanocube.add_many(summaries, &data);
+            nanocube.add_many(&summaries, &data);
             
 
             let ranges = generate_random_ranges(&width, nranges);
@@ -93,4 +107,30 @@ pub fn nanocube_is_equivalent_to_naivecube()
              nloops * nruns * npoints,
              (nloops as f64) * sec,
              ((nruns * npoints) as f64) / sec);
+}
+
+#[test]
+pub fn parallel_nanocube_is_equivalent_to_nanocube()
+{
+    // in this test, we build a number of nanocubes "in parallel" by
+    // splitting the input vector, and then merge all of them in a final pass.
+
+    let width = vec![24,2,2];
+    let npoints = 100;
+
+    let data = generate_random_dataset(&width, npoints);
+    let ncubes = 4;
+
+    let nanocubes: Vec<Nanocube<usize>> = partition_data(&data, ncubes)
+        .iter()
+        .map(|slice| {
+            let summaries: Vec<usize> = (0..slice.len()).map (|x| 1).collect();
+            Nanocube::new_from_many(width.clone(), &summaries, slice)
+        }).collect();
+
+    // let nanocubes = Nanocube::
+    
+    // let mut naivecube = Naivecube::<usize>::new(width.clone());
+    // let mut nanocube = Nanocube::<usize>::new(width.clone());
+    
 }

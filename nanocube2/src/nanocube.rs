@@ -83,6 +83,7 @@ impl NCDim {
     }
 }
 
+#[derive (Clone)]
 pub struct Nanocube<Summary> {
     pub base_root: NodePointerType,
     pub dims: Vec<NCDim>,
@@ -100,6 +101,12 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
             summaries: RefCountedVec::new(),
             release_list: Vec::new()
         }
+    }
+
+    pub fn new_from_many(widths: Vec<usize>, summaries: &[Summary], points: &[Vec<usize>]) -> Nanocube<Summary> {
+        let mut nc = Nanocube::new(widths);
+        nc.add_many(summaries, points);
+        nc
     }
     
     #[inline]
@@ -256,6 +263,36 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         self.dims[dim].at_mut(node_index).flags = 0;
     }
 
+    /// merge_cube takes a different nanocube and mutates self so that the following property holds:
+    /// for every query with self, other, it's the case that
+
+    /// ```
+    /// let q1 = self.query(q);
+    /// let q2 = other.query(q);
+    /// self.merge_cube(other);
+    /// let q3 = self.query(q);
+    /// assert_equals!(q1.mapply(q2), q3);
+    /// ```
+    
+    /// In other words, merge_cube acts like a mutable version of mapply
+    
+    pub fn merge_cube(&mut self,
+                      other: &Nanocube<Summary>) {
+        debug_assert!(other.dims.len() != self.dims.len());
+        
+        let summaries_offset = self.summaries.len(); // keep summaries offset around to fix pointers
+        let ncnode_offsets = (0..self.dims.len()).map(|dim| self.dims[dim].len()).collect();
+        
+
+        // merge the summaries array
+        self.summaries.extend_from_slice(&other.summaries);
+
+        (0..self.dims.len()).map(|dim| {
+            
+            
+        });
+    }
+    
     pub fn merge(&mut self,
                  node_1: NodePointerType, node_2: NodePointerType,
                  dim: usize) -> NodePointerType {
@@ -1057,8 +1094,8 @@ impl <Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
     }
 
     pub fn add_many(&mut self,
-                    summaries: Vec<Summary>,
-                    address_list: &Vec<Vec<usize>>)
+                    summaries: &[Summary],
+                    address_list: &[Vec<usize>])
     {
         let mut spine = Vec::with_capacity(64);
         for i in 0..address_list.len() {
@@ -1418,5 +1455,18 @@ pub fn it_doesnt_smoke()
             nc.make_sparse_branching_spine(&vec![6, 6], &mut spine);
             debug_print!("{:?}", spine);
         }
+    }
+}
+
+impl <Summary: Monoid + PartialOrd + Copy> Monoid for Nanocube<Summary> {
+    fn mempty() -> Nanocube<Summary> {
+        Nanocube<Summary>::new(vec![1]); // this is an ugly hack in order for us to have a sensible empty element
+    }
+
+    fn mapply(&self, rhs: &Nanocube<Summary>) -> Nanocube<Summary> {
+        let result = self.clone();
+        
+        // TODO HERE: MOVE ALL DIMENSION ARRAYS FROM RHS TO RESULT,
+        // RENUMBERING THEM, THEN CALL MERGE ON THE ROOTS
     }
 }
