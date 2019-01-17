@@ -10,6 +10,10 @@ pub trait Cube<Summary: Monoid + PartialOrd + Copy> {
 }
 
 impl Monoid for usize {
-    fn mapply(&self, rhs: &usize) -> usize { self + rhs }
-    fn mempty() -> usize { 0 }
+    fn mapply(&self, rhs: &usize) -> usize {
+        self + rhs
+    }
+    fn mempty() -> usize {
+        0
+    }
 }

@@ -7,15 +7,33 @@ use std::collections::HashMap;
 pub struct RefCountedVec<T> {
     pub values: Vec<T>,
     pub ref_counts: Vec<usize>,
-    pub free_list: Vec<usize>
+    pub free_list: Vec<usize>,
+}
+
+// you should understand exactly what a clone of a refcountedvec does
+// before using it; specifically, we're assuming that the references
+// to the vector will also be cloned somewhere. Specifically,
+// refcounts are preserved
+
+impl<T> Clone for RefCountedVec<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> RefCountedVec<T> {
+        RefCountedVec {
+            values: self.values.clone(),
+            ref_counts: self.ref_counts.clone(),
+            free_list: self.free_list.clone(),
+        }
+    }
 }
 
 fn sorted_array_has_no_duplicates(v: &Vec<usize>) -> bool {
     if v.len() <= 1 {
         return true;
     }
-    for i in 0..v.len()-1 {
-        if v[i] == v[i+1] {
+    for i in 0..v.len() - 1 {
+        if v[i] == v[i + 1] {
             return false;
         }
     }
@@ -24,12 +42,12 @@ fn sorted_array_has_no_duplicates(v: &Vec<usize>) -> bool {
 
 const BASE_CAPACITY: usize = 64;
 
-impl <T> RefCountedVec<T> {
+impl<T> RefCountedVec<T> {
     pub fn new() -> RefCountedVec<T> {
         RefCountedVec {
             values: Vec::with_capacity(BASE_CAPACITY),
             ref_counts: Vec::with_capacity(BASE_CAPACITY),
-            free_list: Vec::with_capacity(BASE_CAPACITY)
+            free_list: Vec::with_capacity(BASE_CAPACITY),
         }
     }
 
@@ -119,7 +137,7 @@ impl <T> RefCountedVec<T> {
             assert!(self.free_list[holes_b] < values_i);
 
             // patch furthest unpatched hole with back of values array
-            self.values.swap    (self.free_list[holes_b], values_i);
+            self.values.swap(self.free_list[holes_b], values_i);
             self.ref_counts.swap(self.free_list[holes_b], values_i);
 
             // update transposition map of compaction
@@ -139,13 +157,42 @@ impl <T> RefCountedVec<T> {
         assert!(self.free_list.len() == 0);
         result
     }
+
+    /// extend_from_array is the equivalent of `extend_from_slice`,
+    /// but more limited in what it takes
+    ///
+    /// extend_from_array has the same caveat as extend_from_slice
+    pub fn extend_from_array(&mut self, other: &RefCountedVec<T>)
+    where
+        T: Clone,
+    {
+        let offset = self.free_list.len();
+        self.values.extend_from_slice(&other.values);
+        self.ref_counts.extend_from_slice(&other.ref_counts);
+        self.free_list
+            .extend(other.free_list.iter().map(|&val| val + offset));
+    }
+
+    /// extend has a slightly-different interface from Vec::extend so
+    /// that we can track the values and ref_counts as well.
+    ///
+    /// extend() has the same caveat as clone()
+    pub fn extend(&mut self, other: &RefCountedVec<T>, f: Fn(&T) -> T)
+    where
+        T: Clone,
+    {
+        let offset = self.free_list.len();
+        self.values.extend(other.iter().map(f));
+        self.ref_counts.extend_from_slice(&other.ref_counts);
+        self.free_list
+            .extend(other.free_list.iter().map(|&val| val + offset));
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
 
 #[test]
-fn it_doesnt_smoke()
-{
+fn it_doesnt_smoke() {
     let mut v = RefCountedVec::<i32>::new();
     v.insert(1);
     v.insert(2);

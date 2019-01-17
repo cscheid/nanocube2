@@ -7,12 +7,12 @@ extern crate rocket;
 #[macro_use]
 extern crate timeit;
 
-mod ref_counted_vec;
-mod nanocube;
-mod naivecube;
 mod cube;
-mod tests;
+mod naivecube;
+mod nanocube;
 mod query;
+mod ref_counted_vec;
+mod tests;
 
 #[get("/")]
 fn index() -> &'static str {

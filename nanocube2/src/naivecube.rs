@@ -1,16 +1,13 @@
-use cube::Monoid;
 use cube::Cube;
+use cube::Monoid;
 
 pub struct Naivecube<Summary> {
     widths: Vec<usize>,
-    values: Vec<(Vec<usize>, Summary)>
+    values: Vec<(Vec<usize>, Summary)>,
 }
 
-impl <Summary: Monoid + PartialOrd + Copy> Naivecube<Summary> {
-    pub fn add(&mut self,
-               summary: Summary,
-               addresses: &Vec<usize>)
-    {
+impl<Summary: Monoid + PartialOrd + Copy> Naivecube<Summary> {
+    pub fn add(&mut self, summary: Summary, addresses: &Vec<usize>) {
         assert!(addresses.len() == self.widths.len());
         self.values.push((addresses.clone(), summary))
     }
@@ -19,12 +16,12 @@ impl <Summary: Monoid + PartialOrd + Copy> Naivecube<Summary> {
         assert!(widths.len() > 0);
         Naivecube {
             widths: widths,
-            values: Vec::new()
+            values: Vec::new(),
         }
     }
 }
 
-impl <Summary: Monoid + PartialOrd + Copy> Cube<Summary> for Naivecube<Summary> {
+impl<Summary: Monoid + PartialOrd + Copy> Cube<Summary> for Naivecube<Summary> {
     fn range_query(&self, bounds: &Vec<(usize, usize)>) -> Summary {
         let mut result = Summary::mempty();
         assert!(bounds.len() == self.widths.len());
@@ -49,8 +46,7 @@ impl <Summary: Monoid + PartialOrd + Copy> Cube<Summary> for Naivecube<Summary> 
 }
 
 #[test]
-pub fn it_doesnt_smoke()
-{
+pub fn it_doesnt_smoke() {
     let mut nc1 = Naivecube::new(vec![2, 2]);
     nc1.add(1, &vec![0, 0]);
     nc1.add(1, &vec![3, 3]);

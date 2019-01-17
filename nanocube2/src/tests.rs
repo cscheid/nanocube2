@@ -1,15 +1,14 @@
+use cube::Cube;
 use naivecube::Naivecube;
-use nanocube::Nanocube;
 use nanocube;
-use std::cmp;
+use nanocube::Nanocube;
 use rand;
 use rand::distributions::{IndependentSample, Range};
-use cube::Cube;
-use timeit;
 use std;
+use std::cmp;
+use timeit;
 
-fn generate_random_dataset(widths: &Vec<usize>, n: usize) -> Vec<Vec<usize>>
-{
+fn generate_random_dataset(widths: &Vec<usize>, n: usize) -> Vec<Vec<usize>> {
     let mut rng = rand::thread_rng();
     let mut result = Vec::new();
     let dims: Vec<Range<usize>> = widths
@@ -22,8 +21,7 @@ fn generate_random_dataset(widths: &Vec<usize>, n: usize) -> Vec<Vec<usize>>
     result
 }
 
-fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usize)>>
-{
+fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usize)>> {
     let mut rng = rand::thread_rng();
     let mut result = Vec::new();
     let dims: Vec<Range<usize>> = widths
@@ -31,18 +29,20 @@ fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usiz
         .map(|w| Range::new(0, (1 as usize) << w))
         .collect();
     for _ in 0..n {
-        result.push(dims.iter().map(|r| {
-            let v1 = r.ind_sample(&mut rng);
-            let v2 = r.ind_sample(&mut rng);
-            (cmp::min(v1, v2),
-             cmp::max(v1, v2) + 1)
-        }).collect());
+        result.push(
+            dims.iter()
+                .map(|r| {
+                    let v1 = r.ind_sample(&mut rng);
+                    let v2 = r.ind_sample(&mut rng);
+                    (cmp::min(v1, v2), cmp::max(v1, v2) + 1)
+                })
+                .collect(),
+        );
     }
     result
 }
 
-fn partition_data(data: &[Vec<usize>], n: usize) -> Vec<&[Vec<usize>]>
-{
+fn partition_data(data: &[Vec<usize>], n: usize) -> Vec<&[Vec<usize>]> {
     let mut result = Vec::new();
 
     for i in 0..n {
@@ -56,14 +56,13 @@ fn partition_data(data: &[Vec<usize>], n: usize) -> Vec<&[Vec<usize>]>
 }
 
 #[test]
-pub fn nanocube_is_equivalent_to_naivecube()
-{
+pub fn nanocube_is_equivalent_to_naivecube() {
     // let nruns = 100;
     // let width = vec![2,3];
     // let npoints = 2;
     // let nranges = 5;
     let nruns = 100;
-    let width = vec![24,2,2];
+    let width = vec![24, 2, 2];
     let npoints = 100;
     let nranges = 5;
 
@@ -82,7 +81,6 @@ pub fn nanocube_is_equivalent_to_naivecube()
                 summaries.push(1);
             }
             nanocube.add_many(&summaries, &data);
-            
 
             let ranges = generate_random_ranges(&width, nranges);
 
@@ -103,19 +101,20 @@ pub fn nanocube_is_equivalent_to_naivecube()
         }
     });
 
-    println!("{} insertions in {} secs (rate: {}).\n",
-             nloops * nruns * npoints,
-             (nloops as f64) * sec,
-             ((nruns * npoints) as f64) / sec);
+    println!(
+        "{} insertions in {} secs (rate: {}).\n",
+        nloops * nruns * npoints,
+        (nloops as f64) * sec,
+        ((nruns * npoints) as f64) / sec
+    );
 }
 
 #[test]
-pub fn parallel_nanocube_is_equivalent_to_nanocube()
-{
+pub fn parallel_nanocube_is_equivalent_to_nanocube() {
     // in this test, we build a number of nanocubes "in parallel" by
     // splitting the input vector, and then merge all of them in a final pass.
 
-    let width = vec![24,2,2];
+    let width = vec![24, 2, 2];
     let npoints = 100;
 
     let data = generate_random_dataset(&width, npoints);
@@ -124,13 +123,13 @@ pub fn parallel_nanocube_is_equivalent_to_nanocube()
     let nanocubes: Vec<Nanocube<usize>> = partition_data(&data, ncubes)
         .iter()
         .map(|slice| {
-            let summaries: Vec<usize> = (0..slice.len()).map (|x| 1).collect();
+            let summaries: Vec<usize> = (0..slice.len()).map(|x| 1).collect();
             Nanocube::new_from_many(width.clone(), &summaries, slice)
-        }).collect();
+        })
+        .collect();
 
     // let nanocubes = Nanocube::
-    
+
     // let mut naivecube = Naivecube::<usize>::new(width.clone());
     // let mut nanocube = Nanocube::<usize>::new(width.clone());
-    
 }
