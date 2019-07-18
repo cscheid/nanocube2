@@ -3,7 +3,9 @@ use naivecube::Naivecube;
 use nanocube;
 use nanocube::Nanocube;
 use rand;
-use rand::distributions::{IndependentSample, Range};
+use rand::Rng;
+use rand::distributions::Uniform;
+use std::ops::Range;
 use std;
 use std::cmp;
 use timeit;
@@ -13,10 +15,13 @@ fn generate_random_dataset(widths: &Vec<usize>, n: usize) -> Vec<Vec<usize>> {
     let mut result = Vec::new();
     let dims: Vec<Range<usize>> = widths
         .iter()
-        .map(|w| Range::new(0, (1 as usize) << w))
+        .map(|w| (0..(1 as usize) << w))
         .collect();
     for _ in 0..n {
-        result.push(dims.iter().map(|r| r.ind_sample(&mut rng)).collect());
+        result.push(dims.iter().map(|r| {
+            let dist = Uniform::new(r.start, r.end);
+            rng.sample(dist)
+        }).collect());
     }
     result
 }
@@ -26,14 +31,15 @@ fn generate_random_ranges(widths: &Vec<usize>, n: usize) -> Vec<Vec<(usize, usiz
     let mut result = Vec::new();
     let dims: Vec<Range<usize>> = widths
         .iter()
-        .map(|w| Range::new(0, (1 as usize) << w))
+        .map(|w| (0..(1 as usize) << w))
         .collect();
     for _ in 0..n {
         result.push(
             dims.iter()
                 .map(|r| {
-                    let v1 = r.ind_sample(&mut rng);
-                    let v2 = r.ind_sample(&mut rng);
+                    let dist = Uniform::new(r.start, r.end);
+                    let v1 = rng.sample(dist);
+                    let v2 = rng.sample(dist);
                     (cmp::min(v1, v2), cmp::max(v1, v2) + 1)
                 })
                 .collect(),

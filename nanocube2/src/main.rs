@@ -1,11 +1,11 @@
-#![feature(plugin)]
-#![plugin(rocket_codegen)]
-
-extern crate rand;
-extern crate rocket;
+#![feature(proc_macro_hygiene, decl_macro)]
 
 #[macro_use]
+extern crate rocket;
+
 extern crate timeit;
+
+extern crate rand;
 
 mod cube;
 mod naivecube;
@@ -20,5 +20,6 @@ fn index() -> &'static str {
 }
 
 fn main() {
+    // println!("Boooo");
     rocket::ignite().mount("/", routes![index]).launch();
 }

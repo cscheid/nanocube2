@@ -173,6 +173,7 @@ impl<T> RefCountedVec<T> {
             .extend(other.free_list.iter().map(|&val| val + offset));
     }
 
+    /*
     /// extend has a slightly-different interface from Vec::extend so
     /// that we can track the values and ref_counts as well.
     ///
@@ -186,7 +187,8 @@ impl<T> RefCountedVec<T> {
         self.ref_counts.extend_from_slice(&other.ref_counts);
         self.free_list
             .extend(other.free_list.iter().map(|&val| val + offset));
-    }
+    } */
+
 }
 
 //////////////////////////////////////////////////////////////////////////////

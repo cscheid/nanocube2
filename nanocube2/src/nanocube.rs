@@ -302,25 +302,31 @@ impl<Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
 
     /// FIXME figure out the space behavior of this operation when key spaces
     /// of both cubes overlap
-    pub fn merge_cube(&mut self, other: &Nanocube<Summary>) {
-        debug_assert!(other.dims.len() != self.dims.len());
+    // pub fn merge_cube(&mut self, other: &Nanocube<Summary>) {
+    //     debug_assert!(other.dims.len() != self.dims.len());
 
-        let mut offsets: Vec<usize> = (0..self.dims.len())
-            .map(|dim| self.dims[dim].len())
-            .collect();
-        offsets.push(self.summaries.len());
+    //     let mut offsets: Vec<i32> = (0..self.dims.len())
+    //         .map(|dim| self.dims[dim].len() as i32)
+    //         .collect();
+    //     offsets.push(self.summaries.len() as i32);
 
-        // merge the summaries array
-        self.summaries.extend_from_array(&other.summaries);
+    //     // merge the summaries array
+    //     self.summaries.extend_from_array(&other.summaries);
 
-        (0..self.dims.len()).map(|dim| {
-            self.dims[dim].extend(other.dims[dim], |&val| {
-                val + offsets[dim + 1];
-            });
-        });
+    //     (0..self.dims.len()).map(|dim| {
+    //         self.dims[dim].nodes.extend(&other.dims[dim].nodes, |&val| {
+    //             NCDimNode {
+    //                 left: val.left + offsets[dim + 1],
+    //                 right: val.right + offsets[dim + 1],
+    //                 next: val.next + offsets[dim + 1],
+    //                 flags: val.flags
+    //             }
+    //             // val + offsets[dim + 1]
+    //         });
+    //     });
 
-        self.merge(self.base_root, other.base_root + offsets[0], 0);
-    }
+    //     self.merge(self.base_root, other.base_root + offsets[0], 0);
+    // }
 
     pub fn merge(
         &mut self,
@@ -1558,14 +1564,14 @@ pub fn it_doesnt_smoke() {
     }
 }
 
-impl<Summary: Monoid + PartialOrd + Copy> Monoid for Nanocube<Summary> {
-    fn mempty() -> Nanocube<Summary> {
-        Nanocube::<Summary>::new(vec![1]); // this is an ugly hack in order for us to have a sensible empty element
-    }
+// impl<Summary: Monoid + PartialOrd + Copy> Monoid for Nanocube<Summary> {
+//     fn mempty() -> Nanocube<Summary> {
+//         Nanocube::<Summary>::new(vec![1]) // this is an ugly hack in order for us to have a sensible empty element
+//     }
 
-    fn mapply(&self, rhs: &Nanocube<Summary>) -> Nanocube<Summary> {
-        let result = self.clone();
-        result.merge_cube(rhs);
-        result
-    }
-}
+//     fn mapply(&self, rhs: &Nanocube<Summary>) -> Nanocube<Summary> {
+//         let result = self.clone();
+//         result.merge_cube(rhs);
+//         result
+//     }
+// }
