@@ -5,4 +5,6 @@ project(nanocube2
   DESCRIPTION "Nanocubes, but simpler"
   LANGUAGES CXX)
 
-add_executable(test_nanocube test_nanocube.cc)
+set (CMAKE_CXX_STANDARD 17)
+
+add_executable(test_nanocube src/test_nanocube.cc src/naivecube.cc)
