@@ -1,4 +1,5 @@
 use cube::Cube;
+use cube::Monoid;
 use naivecube::Naivecube;
 use nanocube;
 use nanocube::Nanocube;
@@ -120,22 +121,60 @@ pub fn parallel_nanocube_is_equivalent_to_nanocube() {
     // in this test, we build a number of nanocubes "in parallel" by
     // splitting the input vector, and then merge all of them in a final pass.
 
-    let width = vec![24, 2, 2];
+    let width = vec![3];
     let npoints = 100;
 
     let data = generate_random_dataset(&width, npoints);
-    let ncubes = 4;
+    let ncubes = 3;
 
-    let nanocubes: Vec<Nanocube<usize>> = partition_data(&data, ncubes)
+    let mut nanocubes: Vec<Nanocube<usize>> = partition_data(&data, ncubes)
         .iter()
         .map(|slice| {
-            let summaries: Vec<usize> = (0..slice.len()).map(|x| 1).collect();
-            Nanocube::new_from_many(width.clone(), &summaries, slice)
+            let summaries: Vec<usize> = (0..slice.len()).map(|_x| 1).collect();
+            let mut result = Nanocube::new_from_many(width.clone(), &summaries, slice);
+            result.flush_release_list();
+            result
         })
         .collect();
 
+    nanocube::write_dot_to_disk("out/nc1.dot", &nanocubes[0]).expect("Couldn't write");
+    nanocube::write_dot_to_disk("out/nc2.dot", &nanocubes[1]).expect("Couldn't write");
+    nanocube::write_dot_to_disk("out/nc3.dot", &nanocubes[2]).expect("Couldn't write");
+    // nanocube::write_dot_to_disk("out/nc4.dot", &nanocubes[3]).expect("Couldn't write");
+
+    let mut final_nanocube = nanocubes[0].clone();
+
+    for (i, d) in nanocubes.iter().enumerate() {
+        if i == 0 {
+            continue;
+        }
+        final_nanocube = final_nanocube.mapply(d);
+    };
+
     // let nanocubes = Nanocube::
 
-    // let mut naivecube = Naivecube::<usize>::new(width.clone());
-    // let mut nanocube = Nanocube::<usize>::new(width.clone());
+    let mut naivecube = Naivecube::<usize>::new(width.clone());
+    let mut summaries = Vec::new();
+    for point in &data {
+        naivecube.add(1, point);
+        summaries.push(1);
+    }
+    
+    let nranges = 5;
+    let ranges = generate_random_ranges(&width, nranges);
+
+    for range in ranges {
+        let naive_result = naivecube.range_query(&range);
+        let nc_result = final_nanocube.range_query(&range);
+        if naive_result != nc_result {
+            println!("mismatch!");
+            println!("data: {:?}", &data);
+            println!("query region: {:?}", &range);
+            println!("naive result: {:?}", &naive_result);
+            println!("nanocube res: {:?}", &nc_result);
+            nanocube::write_dot_to_disk("out/bad_nc.dot", &final_nanocube)
+                .expect("internal error");
+            println!("{:?}", final_nanocube.summaries.values);
+        }
+    }
 }

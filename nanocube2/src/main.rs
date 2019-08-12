@@ -3,6 +3,7 @@
 #[macro_use]
 extern crate rocket;
 
+#[macro_use]
 extern crate timeit;
 
 extern crate rand;

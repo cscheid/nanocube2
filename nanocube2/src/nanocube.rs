@@ -1,5 +1,4 @@
 use cube::Monoid;
-use ref_counted_vec::RefCountedVec;
 use std;
 use std::fs;
 use std::io::Write;
@@ -28,6 +27,21 @@ macro_rules! debug_var {
 
 pub type NodePointerType = i32;
 
+#[derive(Copy, Debug, Clone)]
+pub struct NCDimNode {
+    pub left: NodePointerType,
+    pub right: NodePointerType,
+    pub next: NodePointerType,
+}
+
+#[derive(Clone)]
+pub struct NCDim {
+    pub nodes: Vec<NCDimNode>,
+    pub width: usize,
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #[inline]
 fn get_bit(value: usize, bit: usize) -> bool {
     (value >> bit) & 1 != 0
@@ -39,40 +53,6 @@ enum WhereToInsert {
     Next,
 }
 
-#[derive(Copy, Debug, Clone)]
-pub struct NCDimNode {
-    pub left: NodePointerType,
-    pub right: NodePointerType,
-    pub next: NodePointerType,
-
-    // le sigh. It seems that the most convenient way to speed up
-    // a lot of traversals is to flag some of the nodes along the way.
-    // this is going to make concurrency really hard :/
-    pub flags: i32,
-}
-
-#[derive(Clone)]
-pub struct NCDim {
-    pub nodes: RefCountedVec<NCDimNode>,
-    pub width: usize,
-}
-
-// impl Clone for NCDim {
-//     fn clone(&self) -> NCDim {
-//         let result_nodes = RefCountedVec::new();
-//         result_nodes.values.
-//             extend(self.nodes.values.iter().map(|&d| d.clone()));
-//         result_nodes.ref_counts.
-//             extend_from_slice(&self.nodes.ref_counts);
-//         result_nodes.free_list.
-//             extend_from_slice(&self.nodes.free_list);
-//         NCDim {
-//             nodes: result_nodes,
-//             width: self.width
-//         }
-//     }
-// }
-
 impl NCDim {
     #[inline]
     fn len(&self) -> usize {
@@ -81,19 +61,19 @@ impl NCDim {
 
     fn new(width: usize) -> NCDim {
         NCDim {
-            nodes: RefCountedVec::new(),
+            nodes: Vec::new(),
             width: width,
         }
     }
 
     #[inline]
     pub fn at(&self, index: NodePointerType) -> &NCDimNode {
-        return &self.nodes.values[index as usize];
+        return &self.nodes[index as usize];
     }
 
     #[inline]
     pub fn at_mut(&mut self, index: NodePointerType) -> &mut NCDimNode {
-        return &mut self.nodes.values[index as usize];
+        return &mut self.nodes[index as usize];
     }
 }
 
@@ -101,8 +81,7 @@ impl NCDim {
 pub struct Nanocube<Summary> {
     pub base_root: NodePointerType,
     pub dims: Vec<NCDim>,
-    pub summaries: RefCountedVec<Summary>,
-    release_list: Vec<(NodePointerType, usize)>,
+    pub summaries: Vec<Summary>
 }
 
 impl<Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
@@ -111,8 +90,7 @@ impl<Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         Nanocube {
             base_root: -1,
             dims: widths.into_iter().map(|w| NCDim::new(w)).collect(),
-            summaries: RefCountedVec::new(),
-            release_list: Vec::new(),
+            summaries: Vec::new(),
         }
     }
 
@@ -124,93 +102,6 @@ impl<Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         let mut nc = Nanocube::new(widths);
         nc.add_many(summaries, points);
         nc
-    }
-
-    #[inline]
-    pub fn make_node_ref_not_summary_or_null(
-        &mut self,
-        node_index: NodePointerType,
-        dim: usize,
-    ) -> usize {
-        debug_assert!(dim < self.dims.len());
-        debug_assert!(node_index != -1);
-        debug_print!("make_node_ref {:?} {}", node_index, dim);
-        self.dims[dim].nodes.make_ref(node_index as isize)
-    }
-
-    #[inline]
-    pub fn make_node_ref_not_null(&mut self, node_index: NodePointerType, dim: usize) -> usize {
-        debug_assert!(node_index != -1);
-        if dim == self.dims.len() {
-            return self.summaries.make_ref(node_index as isize);
-        }
-        debug_print!("make_node_ref {:?} {}", node_index, dim);
-        self.dims[dim].nodes.make_ref(node_index as isize)
-    }
-
-    #[inline]
-    pub fn make_node_ref_not_summary(&mut self, node_index: NodePointerType, dim: usize) -> usize {
-        debug_assert!(dim < self.dims.len());
-        if node_index == -1 {
-            return 0;
-        }
-        debug_print!("make_node_ref {:?} {}", node_index, dim);
-        self.dims[dim].nodes.make_ref(node_index as isize)
-    }
-
-    #[inline]
-    pub fn make_node_ref(&mut self, node_index: NodePointerType, dim: usize) -> usize {
-        debug_print!("make_node_ref {:?} {}", node_index, dim);
-        if node_index == -1 {
-            return 0;
-        }
-        if dim == self.dims.len() {
-            return self.summaries.make_ref(node_index as isize);
-        }
-        self.dims[dim].nodes.make_ref(node_index as isize)
-    }
-
-    pub fn flush_release_list(&mut self) {
-        while self.release_list.len() > 0 {
-            let (node_index, dim) = self.release_list.pop().unwrap();
-            if dim == self.dims.len() {
-                self.summaries.release_ref(node_index as isize);
-                continue;
-            }
-            let new_ref_count = self.dims[dim].nodes.release_ref(node_index as isize);
-            if new_ref_count != 0 {
-                continue;
-            }
-            debug_print!("Node {},{} is free", dim, node_index);
-            let node = self.dims[dim].at_mut(node_index);
-            if node.left >= 0 {
-                self.release_list.push((node.left, dim));
-            }
-            if node.right >= 0 {
-                self.release_list.push((node.right, dim));
-            }
-            if node.next >= 0 {
-                self.release_list.push((node.next, dim + 1));
-            }
-            node.left = -1;
-            node.right = -1;
-            node.next = -1;
-        }
-    }
-
-    pub fn release_node_ref(&mut self, node_index: NodePointerType, dim: usize) {
-        // FIXME I think this is probably better handled as a global parameter elsewhere, but..
-        let release_thresh = 256;
-        debug_print!("release_node_ref {:?} {}", node_index, dim);
-        if node_index == -1 {
-            return;
-        }
-        self.release_list.push((node_index, dim));
-        if self.release_list.len() <= release_thresh {
-            return;
-        } else {
-            self.flush_release_list();
-        }
     }
 
     pub fn insert_fresh_node(
@@ -226,7 +117,7 @@ impl<Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
         for d in (dim..self.dims.len()).rev() {
             let width = self.dims[d].width;
             let mut refine_node: NodePointerType = -1;
-            let mut lo = if dim == d { bit } else { 0 };
+            let lo = if dim == d { bit } else { 0 };
             for b in (lo..width + 1).rev() {
                 if b == width {
                     let node = NCDimNode {
@@ -302,31 +193,52 @@ impl<Summary: Monoid + PartialOrd + Copy> Nanocube<Summary> {
 
     /// FIXME figure out the space behavior of this operation when key spaces
     /// of both cubes overlap
-    // pub fn merge_cube(&mut self, other: &Nanocube<Summary>) {
-    //     debug_assert!(other.dims.len() != self.dims.len());
+    pub fn merge_cube(&mut self, other: &Nanocube<Summary>) {
+        debug_assert!(other.dims.len() == self.dims.len());
 
-    //     let mut offsets: Vec<i32> = (0..self.dims.len())
-    //         .map(|dim| self.dims[dim].len() as i32)
-    //         .collect();
-    //     offsets.push(self.summaries.len() as i32);
+        let mut offsets: Vec<i32> = (0..self.dims.len())
+            .map(|dim| self.dims[dim].len() as i32)
+            .collect();
+        offsets.push(self.summaries.len() as i32);
 
-    //     // merge the summaries array
-    //     self.summaries.extend_from_array(&other.summaries);
+        // merge the summaries array
+        self.summaries.extend_from_array(&other.summaries);
 
-    //     (0..self.dims.len()).map(|dim| {
-    //         self.dims[dim].nodes.extend(&other.dims[dim].nodes, |&val| {
-    //             NCDimNode {
-    //                 left: val.left + offsets[dim + 1],
-    //                 right: val.right + offsets[dim + 1],
-    //                 next: val.next + offsets[dim + 1],
-    //                 flags: val.flags
-    //             }
-    //             // val + offsets[dim + 1]
-    //         });
-    //     });
+        write_dot_to_disk("out/self_before.dot", &self).expect("couldn't write");
+        debug_print!("dims 0 for self, before:");
+        for (i, d) in self.dims[0].nodes.values.iter().enumerate() {
+            if self.dims[0].nodes.ref_counts[i] != 0 {
+                debug_print!("node {}: {:?}", i, d);
+            }
+        }
+        debug_print!("dims 0 for other, before:");
+        for (i, d) in other.dims[0].nodes.values.iter().enumerate() {
+            if other.dims[0].nodes.ref_counts[i] != 0 {
+                debug_print!("node {}: {:?}", i, d);
+            }
+        }
+        for dim in (0..self.dims.len()) {
+            self.dims[dim].nodes.extend(&other.dims[dim].nodes, &(|&val : &NCDimNode| {
+                NCDimNode {
+                    left: if val.left == -1 { -1 } else { val.left + offsets[dim] },
+                    right: if val.left == -1 { -1 } else { val.right + offsets[dim] },
+                    next: if val.left == -1 { -1 } else { val.next + offsets[dim + 1] },
+                    flags: val.flags
+                }
+            }));
+        };
+        debug_print!("dims 0 for self, after:");
+        for (i, d) in self.dims[0].nodes.values.iter().enumerate() {
+            if self.dims[0].nodes.ref_counts[i] != 0 {
+                debug_print!("node {}: {:?}", i, d);
+            }
+        }
 
-    //     self.merge(self.base_root, other.base_root + offsets[0], 0);
-    // }
+        write_dot_to_disk("out/self_before_merge.dot", &self).expect("couldn't write");
+        write_dot_to_disk("out/other.dot", &other).expect("couldn't write");
+        self.merge(self.base_root, other.base_root + offsets[0], 0);
+        write_dot_to_disk("out/self.dot", &self).expect("couldn't write");
+    }
 
     pub fn merge(
         &mut self,
@@ -1413,7 +1325,7 @@ fn write_animation(path_prefix: &str, dims: Vec<usize>, data: &Vec<Vec<usize>>) 
 
 pub fn ensure_dir(path: &std::path::Path) -> std::io::Result<()> {
     match std::fs::metadata(path) {
-        Err(e) => std::fs::create_dir(path),
+        Err(_e) => std::fs::create_dir(path),
         Ok(attr) => {
             if attr.is_dir() {
                 Ok(())
@@ -1564,14 +1476,14 @@ pub fn it_doesnt_smoke() {
     }
 }
 
-// impl<Summary: Monoid + PartialOrd + Copy> Monoid for Nanocube<Summary> {
-//     fn mempty() -> Nanocube<Summary> {
-//         Nanocube::<Summary>::new(vec![1]) // this is an ugly hack in order for us to have a sensible empty element
-//     }
+impl<Summary: Monoid + PartialOrd + Copy> Monoid for Nanocube<Summary> {
+    fn mempty() -> Nanocube<Summary> {
+        Nanocube::<Summary>::new(vec![1]) // this is an ugly hack in order for us to have a sensible empty element
+    }
 
-//     fn mapply(&self, rhs: &Nanocube<Summary>) -> Nanocube<Summary> {
-//         let result = self.clone();
-//         result.merge_cube(rhs);
-//         result
-//     }
-// }
+    fn mapply(&self, rhs: &Nanocube<Summary>) -> Nanocube<Summary> {
+        let mut result = self.clone();
+        result.merge_cube(rhs);
+        result
+    }
+}

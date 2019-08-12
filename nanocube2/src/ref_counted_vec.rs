@@ -10,6 +10,20 @@ pub struct RefCountedVec<T> {
     pub free_list: Vec<usize>,
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
+static DEBUG_ENABLED: bool = true;
+
+macro_rules! debug_print {
+    ($str:expr $(,$params:expr)*) => (
+        if DEBUG_ENABLED {
+            print!("{}:{} - ", file!(), line!());
+            println!($str $(,$params)*);
+        }
+    )
+}
+
+
 // you should understand exactly what a clone of a refcountedvec does
 // before using it; specifically, we're assuming that the references
 // to the vector will also be cloned somewhere. Specifically,
@@ -173,21 +187,22 @@ impl<T> RefCountedVec<T> {
             .extend(other.free_list.iter().map(|&val| val + offset));
     }
 
-    /*
     /// extend has a slightly-different interface from Vec::extend so
     /// that we can track the values and ref_counts as well.
     ///
     /// extend() has the same caveat as clone()
-    pub fn extend(&mut self, other: &RefCountedVec<T>, f: Fn(&T) -> T)
+    pub fn extend(&mut self, other: &RefCountedVec<T>, f: &dyn Fn(&T) -> T)
     where
         T: Clone,
     {
         let offset = self.free_list.len();
-        self.values.extend(other.iter().map(f));
+        debug_print!("Length before extend: {:?}", self.values.len());
+        self.values.extend(other.values.iter().map(f));
+        debug_print!("Length after extend: {:?}", self.values.len());
         self.ref_counts.extend_from_slice(&other.ref_counts);
         self.free_list
             .extend(other.free_list.iter().map(|&val| val + offset));
-    } */
+    }
 
 }
 
