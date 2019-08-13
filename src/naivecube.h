@@ -19,20 +19,25 @@ class NaiveCube
       widths_(widths),
       values_() {}
       
-  void add(const std::vector<size_t> &address, const Summary &summary);
+  void insert(const std::vector<size_t> &address, const Summary &summary);
 
-  Summary range_query(const std::vector<std::pair<size_t, size_t> > &bounds);
+  template <typename SummaryPolicy>
+  Summary range_query(
+      SummaryPolicy &policy,
+      const std::vector<std::pair<size_t, size_t> > &bounds);
 };
 
 template <typename Summary>
-void NaiveCube<Summary>::add(
+void NaiveCube<Summary>::insert(
     const std::vector<size_t> &address, const Summary &summary)
 {
   values_.push_back(std::make_pair(address, summary));
 }
 
 template <typename Summary>
+template <typename SummaryPolicy>
 Summary NaiveCube<Summary>::range_query(
+    SummaryPolicy &policy,
     const std::vector<std::pair<size_t, size_t> > &bounds)
 {
   Summary result = Summary();
@@ -52,7 +57,7 @@ Summary NaiveCube<Summary>::range_query(
       }
     }
     if (inside) {
-      result += v.second;
+      policy.add(v.second);
     }
   }
   return result;

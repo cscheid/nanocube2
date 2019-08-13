@@ -7,4 +7,4 @@ project(nanocube2
 
 set (CMAKE_CXX_STANDARD 17)
 
-add_executable(test_nanocube src/test_nanocube.cc src/naivecube.cc)
+add_executable(test_nanocube src/test_nanocube.cc src/naivecube.cc src/nanocube.cc)
