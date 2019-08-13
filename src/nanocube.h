@@ -1,7 +1,7 @@
 #ifndef NANOCUBE_H_
 #define NANOCUBE_H_
 
-#define NTRACE
+// #define NTRACE
 
 #include <vector>
 #include <boost/assert.hpp>
@@ -55,6 +55,20 @@ struct NanoCube
   NCNodePointerType base_root_;
   std::vector<NCDim> dims_;
   std::vector<Summary> summaries_;
+
+  inline void add_node(size_t dim,
+                       NCNodePointerType l, NCNodePointerType r, NCNodePointerType n)
+  {
+    TRACE_BLOCK(rang::fg::red << "add node" << rang::style::reset
+                << " dim:" << dim << " index:" << dims_[dim].size() << " value: " << l << ":" << r << ":" << n);
+    dims_[dim].nodes.push_back(NCDimNode(l, r, n));
+  }
+
+  inline void report_node(size_t dim, size_t index)
+  {
+    TRACE_BLOCK(rang::fg::red << "set node" << rang::style::reset
+                << " dim:" << dim << " index:" << index << " value: " << dims_[dim].nodes[index]);
+  }
   
   explicit NanoCube(const std::vector<size_t> &widths) {
     BOOST_ASSERT(widths.size() > 0);
@@ -68,6 +82,7 @@ struct NanoCube
   insert_fresh_node(const Summary &summary, const std::vector<size_t> &addresses,
                     size_t dim, size_t bit)
   {
+    TRACE_BLOCK("insert_fresh_node");
     summaries_.push_back(summary);
     NCNodePointerType new_summary_ref = NCNodePointerType(summaries_.size()-1);
     NCNodePointerType next_node = new_summary_ref;
@@ -79,20 +94,19 @@ struct NanoCube
 
       // on first dimension, only create as many as needed to get to the bottom
       size_t lo = dim == d ? bit : 0;
-      
-      dims_[d].nodes.push_back(NCDimNode(-1, -1, next_node));
+
+      add_node(d, -1, -1, next_node);
       NCNodePointerType refine_node = dims_[d].size() - 1;
       for (int b = width-1; b >= int(lo); --b) {
         TRACE(b);
         TRACE(width - b - 1);
         bool right = path_refines_towards_right(addresses[d], b, width); // width - b - 1);
         TRACE(right);
-        NCDimNode node(!right ? refine_node : -1,
-                        right ? refine_node : -1,
-                       next_node);
         TRACE(refine_node);
-        TRACE(node);
-        dims_[d].nodes.push_back(node);
+        add_node(d,
+                 !right ? refine_node : -1,
+                  right ? refine_node : -1,
+                 next_node);
         refine_node = dims_[d].size() - 1;
       }
       next_node = refine_node;
@@ -103,8 +117,11 @@ struct NanoCube
   NCNodePointerType
   merge_spine(size_t dim, NCNodePointerType cube_node_index, NCNodePointerType spine_node_index)
   {
+    TRACE_BLOCK("merge_spine")
     if (dim == dims_.size()) {
       // merge summaries
+      TRACE_BLOCK("summaries dim, bottomed out");
+      TRACE(dim);
       TRACE(cube_node_index);
       TRACE(spine_node_index);
       const Summary &cube_summ = summaries_[cube_node_index];
@@ -122,9 +139,10 @@ struct NanoCube
 
     // case 1: bottom of dimension
     if (spine_node.left_ == -1 && spine_node.right_ == -1) {
+      TRACE_BLOCK("bottom of dimension");
       BOOST_ASSERT(cube_node.left_ == -1 && cube_node.right_ == -1);
       NCNodePointerType result = merge_spine(dim+1, cube_node.next_, spine_node.next_);
-      dims_[dim].nodes.push_back(NCDimNode(-1, -1, result));
+      add_node(dim, -1, -1, result);
       return NCNodePointerType(dims_[dim].size() - 1);
     }
 
@@ -132,15 +150,17 @@ struct NanoCube
     if (cube_node.left_ == -1 && spine_node.left_ == -1 &&
         cube_node.right_ != -1 && spine_node.right_ != -1) {
       // spine points right
+      TRACE_BLOCK("singleton path same direction, right");
       NCNodePointerType result = merge_spine(dim, cube_node.right_, spine_node.right_);
-      dims_[dim].nodes.push_back(NCDimNode(-1, result, dims_[dim].nodes[result].next_));
+      add_node(dim, -1, result, dims_[dim].nodes[result].next_);
       return NCNodePointerType(dims_[dim].size() - 1);
     }
     if (cube_node.left_ != -1 && spine_node.left_ != -1 &&
         cube_node.right_ == -1 && spine_node.right_ == -1) {
       // spine points left
+      TRACE_BLOCK("singleton path same direction, left");
       NCNodePointerType result = merge_spine(dim, cube_node.left_, spine_node.left_);
-      dims_[dim].nodes.push_back(NCDimNode(result, -1, dims_[dim].nodes[result].next_));
+      add_node(dim, result, -1, dims_[dim].nodes[result].next_);
       return NCNodePointerType(dims_[dim].size() - 1);
     }
 
@@ -148,15 +168,17 @@ struct NanoCube
     if (cube_node.left_ != -1 && spine_node.left_ == -1 &&
         cube_node.right_ == -1 && spine_node.right_ != -1) {
       // spine points right
+      TRACE_BLOCK("singleton path opposite direction, right");
       NCNodePointerType result = merge_spine(dim+1, cube_node.next_, spine_node.next_);
-      dims_[dim].nodes.push_back(NCDimNode(cube_node.left_, spine_node.right_, result));
+      add_node(dim, cube_node.left_, spine_node.right_, result);
       return NCNodePointerType(dims_[dim].size() - 1);
     }
     if (cube_node.left_ == -1 && spine_node.left_ != -1 &&
         cube_node.right_ != -1 && spine_node.right_ == -1) {
       // spine points left
+      TRACE_BLOCK("singleton path opposite direction, left");
       NCNodePointerType result = merge_spine(dim+1, cube_node.next_, spine_node.next_);
-      dims_[dim].nodes.push_back(NCDimNode(spine_node.left_, cube_node.right_, result));
+      add_node(dim, spine_node.left_, cube_node.right_, result);
       return NCNodePointerType(dims_[dim].size() - 1);
     }
 
@@ -164,17 +186,19 @@ struct NanoCube
     if (cube_node.left_ != -1 && spine_node.left_ == -1 &&
         cube_node.right_ != -1 && spine_node.right_ != -1) {
       // spine points right
+      TRACE_BLOCK("not singleton path, right");
       NCNodePointerType next = merge_spine(dim+1, cube_node.next_, spine_node.next_);
       NCNodePointerType ref = merge_spine(dim, cube_node.right_, spine_node.right_);
-      dims_[dim].nodes.push_back(NCDimNode(cube_node.left_, ref, next));
+      add_node(dim, cube_node.left_, ref, next);
       return NCNodePointerType(dims_[dim].size() - 1);
     }
     if (cube_node.left_ != -1 && spine_node.left_ != -1 &&
         cube_node.right_ != -1 && spine_node.right_ == -1) {
       // spine points left
+      TRACE_BLOCK("not singleton path, left");
       NCNodePointerType next = merge_spine(dim+1, cube_node.next_, spine_node.next_);
       NCNodePointerType ref = merge_spine(dim, cube_node.left_, spine_node.left_);
-      dims_[dim].nodes.push_back(NCDimNode(ref, cube_node.right_, next));
+      add_node(dim, ref, cube_node.right_, next);
       return NCNodePointerType(dims_[dim].size() - 1);
     }
 
@@ -187,9 +211,11 @@ struct NanoCube
   add_to(const Summary &summary, const std::vector<size_t> &addresses,
          size_t dim, size_t bit, NCNodePointerType current_node_index)
   {
+    TRACE_BLOCK("add_to " << dim << " " << bit << " " << current_node_index);
     // reached summaries array: we bottom out here by simply mutating
     // the summary for this particular address.
     if (dim == dims_.size()) {
+      TRACE_BLOCK("bottom out on summaries");
       BOOST_ASSERT(bit == 0);
       summaries_[current_node_index] = summaries_[current_node_index] + summary;
       return;
@@ -221,41 +247,46 @@ struct NanoCube
     
     if (l == -1 && r == -1) {
       // bottom of this dimension
-      TRACE("bottom");
+      TRACE_BLOCK("bottom");
       add_to(summary, addresses, dim+1, 0, n);
     } else if (right && l == -1 && r != -1) {
       // refine along a singleton path to the right
-      TRACE("singleton refine to the right");
+      TRACE_BLOCK("singleton refine to the right");
       add_to(summary, addresses, dim, bit+1, r);
       dims_[dim].nodes[current_node_index].next_ = dims_[dim].nodes[r].next_;
+      report_node(dim, current_node_index);
     } else if (!right && l != -1 && r == -1) {
       // refine along a singleton path to the left
-      TRACE("singleton refine to the left");
+      TRACE_BLOCK("singleton refine to the left");
       add_to(summary, addresses, dim, bit+1, l);
       dims_[dim].nodes[current_node_index].next_ = dims_[dim].nodes[l].next_;
+      report_node(dim, current_node_index);
     } else if (right && l != -1 && r == -1) {
+      TRACE_BLOCK("create new branching path to the right");
       // create new branching path to the right
-      TRACE("create new branching path to the right");
       auto new_refine = insert_fresh_node(summary, addresses, dim, bit+1);
       TRACE(new_refine);
       dims_[dim].nodes[current_node_index].right_ = new_refine;
       dims_[dim].nodes[current_node_index].next_ = merge_spine(dim+1, n, dims_[dim].nodes[new_refine].next_);
+      report_node(dim, current_node_index);
     } else if (!right && l == -1 && r != -1) {
       // create new branching path to the left
-      TRACE("create new branching path to the left");
+      TRACE_BLOCK("create new branching path to the left");
       auto new_refine = insert_fresh_node(summary, addresses, dim, bit+1);
       TRACE(new_refine);
       dims_[dim].nodes[current_node_index].left_ = new_refine;
       dims_[dim].nodes[current_node_index].next_ = merge_spine(dim+1, n, dims_[dim].nodes[new_refine].next_);
+      report_node(dim, current_node_index);
     } else {
       // go along one side of an existing path, must add to refinement _and_
       // next, since next points to a non-trivial merged summary.
-      TRACE("add to refine and next");
       BOOST_ASSERT(l != -1 && r != -1);
       if (right) {
+        TRACE_BLOCK("add to refine and next on right");
         add_to(summary, addresses, dim, bit+1, r);
         add_to(summary, addresses, dim+1, 0, n);
       } else {
+        TRACE_BLOCK("add to refine and next on left");
         add_to(summary, addresses, dim, bit+1, l);
         add_to(summary, addresses, dim+1, 0, n);
       }
@@ -265,6 +296,7 @@ struct NanoCube
   void
   insert(const std::vector<size_t> &addresses, const Summary &summary)
   {
+    TRACE_BLOCK("insert " << stream_vector<size_t>(addresses));
     // base case: initialize an empty nanocube
     if (base_root_ == -1) {
       base_root_ = insert_fresh_node(summary, addresses, 0, 0);
@@ -393,6 +425,7 @@ void NanoCube<Summary>::range_query(
 
 bool test_naive_cube_and_nanocube_equivalence();
 bool test_naive_cube_and_nanocube_equivalence_1();
+bool test_naive_cube_and_nanocube_equivalence_2();
 
 };
 

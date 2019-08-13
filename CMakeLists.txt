@@ -7,4 +7,7 @@ project(nanocube2
 
 set (CMAKE_CXX_STANDARD 17)
 
-add_executable(test_nanocube src/test_nanocube.cc src/naivecube.cc src/nanocube.cc)
+add_executable(test_nanocube src/test_nanocube.cc src/naivecube.cc src/nanocube.cc src/debug.cc)
+
+target_include_directories(test_nanocube PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
