@@ -21,10 +21,10 @@ bool test_equivalence_to_naivecube(
     WHEN_TRACING {
       cube.dump_nc(true);
     }
-  }
-  {
-    std::ofstream out("nc.dot");
-    cube.print_dot(out);
+    {
+      std::ofstream out("nc.dot");
+      cube.print_dot(out);
+    }
   }
   
   nc2::CombineSummaryPolicy<int> p1, p2;

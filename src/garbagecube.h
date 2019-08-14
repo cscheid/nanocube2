@@ -62,14 +62,25 @@ struct GarbageCube: public BaseCube<Summary>
     // The other source of sharing comes from when the result
     // of a merge is a singleton node. In that case, we can
     // safely share the next edge with the result.
+    if (l1 == l2 && r1 == r2 && l1 == -1 && r1 == -1) {
+      NCNodePointerType new_next = merge(dim+1, n1, n2);
+      const NCDimNode &new_next_node = this->dims_[dim].nodes[new_next];
+      return this->add_node(dim, -1, -1, new_next);
+    }
     if (l1 == l2 && l1 == -1) {
+      TRACE_BLOCK("merge only right");
       NCNodePointerType new_right = merge(dim, r1, r2);
       const NCDimNode &new_right_node = this->dims_[dim].nodes[new_right];
+      TRACE(new_right);
+      TRACE(new_right_node);
       return this->add_node(dim, -1, new_right, new_right_node.next_);
     }
     if (r1 == r2 && r1 == -1) {
+      TRACE_BLOCK("merge only left");
       NCNodePointerType new_left = merge(dim, l1, l2);
       const NCDimNode &new_left_node = this->dims_[dim].nodes[new_left];
+      TRACE(new_left);
+      TRACE(new_left_node);
       return this->add_node(dim, new_left, -1, new_left_node.next_);
     }
 
@@ -103,7 +114,11 @@ struct GarbageCube: public BaseCube<Summary>
   }
 };
 
+/******************************************************************************/
+// tests
+
 bool test_naivecube_and_garbagecube_equivalence();
+bool test_garbagecube_1();
 
 };
 
