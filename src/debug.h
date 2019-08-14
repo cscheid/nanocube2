@@ -58,6 +58,7 @@ bool tracing_enabled();
 
 #define ENABLE_TRACING nc2::EnableTracing __enable_tracing_hope_we_do_not_clash_shrug;
 #define DISABLE_TRACING nc2::DisableTracing __disable_tracing_hope_we_do_not_clash_shrug;
+#define WHEN_TRACING if (nc2::tracing_enabled())
 
 #endif
 
