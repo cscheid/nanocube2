@@ -104,8 +104,9 @@ struct GarbageCube: public BaseCube<Summary>
     this->release_node_ref(this->base_root_, 0);
     this->base_root_ = new_root;
 
-    // at this point, it's likely that the base of spine will have no references pointing to it.
-    // since we won't hold any references, we need to clean it up now.
+    // at this point, it's likely that the base of spine will have no
+    // references pointing to it.  since we won't hold any references,
+    // we need to clean it up now.
 
     if (this->dims_[0].nodes.ref_counts[spine] == 0) {
       TRACE_BLOCK("clean spine");
