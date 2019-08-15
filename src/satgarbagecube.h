@@ -188,41 +188,6 @@ struct PersistentSAT
     TRACE(min_v);
     TRACE(max_v);
     return max_v - min_v;
-                     
-    
-    // if (max_lb_i == sat_->size()) {
-    //   const T &max_v = sat_->last().second;
-    //   const T &min_v = sat_->get(min_lb_i).second;
-    //   TRACE(min_v);
-    //   TRACE(max_v);
-    //   return max_v - min_v;
-    // }
-    // size_t max_lb_key = sat_->get(max_lb_i).first;
-    // TRACE(max_lb_key);
-    
-    // if (max_key < max_lb_key)
-    //   max_lb_i -= 1;
-
-    // const T &max_v = sat_->get(max_lb_i).second;
-    // TRACE(max_v);
-    // if (min_lb_i == 0) {
-    //   BOOST_ASSERT(min_key <= sat_->first().first);
-    //   TRACE_BLOCK("sum from 0");
-    //   return max_v;
-    // }
-    // // min_lb_i > 0
-    // if (min_key == sat_->get(min_lb_i).first) {
-    //   min_lb_i -= 1;
-    // } else {
-    //   BOOST_ASSERT(min_key > sat_->get(min_lb_i).first);
-    // }
-    
-    // const T &min_v = sat_->get(min_lb_i).second;
-    // TRACE(min_v);
-    // {
-    //   TRACE_BLOCK("regular sum");
-    //   return max_v - min_v;
-    // }
   }
 
   PersistentSAT<T> &operator+=(const PersistentSAT<T> &other) {
