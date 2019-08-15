@@ -94,6 +94,7 @@ bool test_randomized_equivalence_to_naivecube(
         
         std::cerr << "data structures disagree: naivecube " << p1.total << " vs cube " << p2.total << std::endl;
 
+        cube.dump_nc();
         {
           std::ofstream out("nc.dot");
           cube.print_dot(out);

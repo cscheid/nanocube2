@@ -53,16 +53,24 @@ bool test_persistentsat_lower_bound()
 
 bool test_persistentsat_sum()
 {
-  PersistentSAT<int> s;
-  s = s.add(3, 1).add(5, 1).add(7, 1);
+  {
+    PersistentSAT<int> s;
+    s = s.add(3, 1).add(5, 1).add(7, 1);
 
-  CHECK_THAT(s.sum(0, 0) == 0);
-  CHECK_THAT(s.sum(3, 4) == 1);
-  CHECK_THAT(s.sum(4, 5) == 0);
-  CHECK_THAT(s.sum(5, 6) == 1);
-  CHECK_THAT(s.sum(0, 4) == 1);
-  CHECK_THAT(s.sum(0, 6) == 2);
-  CHECK_THAT(s.sum(0, 8) == 3);
+    CHECK_THAT(s.sum(0, 0) == 0);
+    CHECK_THAT(s.sum(3, 4) == 1);
+    CHECK_THAT(s.sum(4, 5) == 0);
+    CHECK_THAT(s.sum(5, 6) == 1);
+    CHECK_THAT(s.sum(0, 4) == 1);
+    CHECK_THAT(s.sum(0, 6) == 2);
+    CHECK_THAT(s.sum(0, 8) == 3);
+  }
+
+  {
+    PersistentSAT<int> s;
+    s = s.add(1, 1).add(11, 1);
+    CHECK_THAT(s.sum(5, 13) == 1);
+  }
   return true;
 }
 
@@ -89,6 +97,12 @@ bool test_persistentsat_addition()
     CHECK_THAT(s == s3);
   }
   return true;
+}
+
+bool test_naivecube_and_satgarbagecube_equivalence()
+{
+  return test_randomized_equivalence_to_naivecube<SATGarbageCube>(
+      {4, 4}, 1000, 2, 10);
 }
 
 };

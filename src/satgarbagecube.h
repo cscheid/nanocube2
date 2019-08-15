@@ -158,43 +158,71 @@ struct PersistentSAT
   }
   
   T sum(size_t min_key, size_t max_key) const {
+    TRACE(*this);
+    TRACE(min_key);
+    TRACE(max_key);
+
     if (sat_->size() == 0)
       return T();
     
     size_t min_lb_i = lower_bound(min_key);
     size_t max_lb_i = lower_bound(max_key);
 
+    TRACE(min_lb_i);
+    TRACE(max_lb_i);
+    
     if (min_lb_i == max_lb_i)
       return T();
 
     BOOST_ASSERT(max_lb_i > 0);
-    max_lb_i -= 1;
 
-    TRACE(min_key);
-    TRACE(max_key);
-    TRACE(min_lb_i);
-    TRACE(max_lb_i);
+    const T &max_v =
+        (max_lb_i == sat_->size()) ? sat_->last().second :
+        (max_key <= sat_->get(max_lb_i).first) ? sat_->get(max_lb_i-1).second : sat_->get(max_lb_i).second;
 
-    const T &max_v = sat_->get(max_lb_i).second;
-    TRACE(max_v);
-    if (min_lb_i == 0) {
-      BOOST_ASSERT(min_key <= sat_->first().first);
-      TRACE_BLOCK("sum from 0");
-      return max_v;
-    }
-    // min_lb_i > 0
-    if (min_key == sat_->get(min_lb_i).first) {
-      min_lb_i -= 1;
-    } else {
-      BOOST_ASSERT(min_key > sat_->get(min_lb_i).first);
-    }
-    
-    const T &min_v = sat_->get(min_lb_i).second;
+    static T zero = T();
+    const T &min_v =
+        (min_key <= sat_->get(min_lb_i).first && min_lb_i == 0) ? zero :
+        (min_key <= sat_->get(min_lb_i).first) ? sat_->get(min_lb_i-1).second : sat_->get(min_lb_i).second;
+
     TRACE(min_v);
-    {
-      TRACE_BLOCK("regular sum");
-      return max_v - min_v;
-    }
+    TRACE(max_v);
+    return max_v - min_v;
+                     
+    
+    // if (max_lb_i == sat_->size()) {
+    //   const T &max_v = sat_->last().second;
+    //   const T &min_v = sat_->get(min_lb_i).second;
+    //   TRACE(min_v);
+    //   TRACE(max_v);
+    //   return max_v - min_v;
+    // }
+    // size_t max_lb_key = sat_->get(max_lb_i).first;
+    // TRACE(max_lb_key);
+    
+    // if (max_key < max_lb_key)
+    //   max_lb_i -= 1;
+
+    // const T &max_v = sat_->get(max_lb_i).second;
+    // TRACE(max_v);
+    // if (min_lb_i == 0) {
+    //   BOOST_ASSERT(min_key <= sat_->first().first);
+    //   TRACE_BLOCK("sum from 0");
+    //   return max_v;
+    // }
+    // // min_lb_i > 0
+    // if (min_key == sat_->get(min_lb_i).first) {
+    //   min_lb_i -= 1;
+    // } else {
+    //   BOOST_ASSERT(min_key > sat_->get(min_lb_i).first);
+    // }
+    
+    // const T &min_v = sat_->get(min_lb_i).second;
+    // TRACE(min_v);
+    // {
+    //   TRACE_BLOCK("regular sum");
+    //   return max_v - min_v;
+    // }
   }
 
   PersistentSAT<T> &operator+=(const PersistentSAT<T> &other) {
@@ -259,19 +287,84 @@ std::vector<T> drop_one(const std::vector<T> &v)
 }
 
 template <typename Summary>
-struct GarbageCube: public BaseCube<Summary>
+struct SATGarbageCube
 {
-  explicit GarbageCube(const std::vector<size_t> &widths):
-      BaseCube<PersistentSAT<Summary> >(drop_one(widths)) {}
+  BaseCube<PersistentSAT<Summary> > base_cube_;
+  
+  explicit SATGarbageCube(const std::vector<size_t> &widths):
+      base_cube_(drop_one(widths)) {}
 
   void insert(const std::vector<size_t> &addresses, const Summary &summary) {
     // FIXME huh, this is annoyingly bad and annoyingly hard to fix nicely
     std::vector<size_t> first_addresses(drop_one(addresses));
 
-    
+    PersistentSAT<Summary> singleton;
+    singleton.add_mutate(addresses.back(), summary);
+
+    NCNodePointerType spine = base_cube_.insert_fresh_node(singleton, first_addresses, 0, 0);
+    NCNodePointerType new_root = base_cube_.merge(0, spine, base_cube_.base_root_);
+
+    base_cube_.make_node_ref(new_root, 0);
+    base_cube_.release_node_ref(base_cube_.base_root_, 0);
+    base_cube_.base_root_ = new_root;
+
+    // at this point, it's likely that the base of spine will have no
+    // references pointing to it.  since we won't hold any references,
+    // we need to clean it up now.
+
+    if (base_cube_.dims_[0].nodes.ref_counts[spine] == 0) {
+      TRACE_BLOCK("clean spine");
+      base_cube_.clean_node(spine, 0);
+    }
+  }
+
+  template <typename SummaryPolicy>
+  void range_query(
+      SummaryPolicy &policy,
+      const std::vector<std::pair<size_t, size_t> > &bounds) const;
+
+  void print_dot(std::ostream &os, bool draw_garbage=false) {
+    base_cube_.print_dot(os, draw_garbage);
+  }
+
+  void dump_nc(bool show_garbage=false) {
+    base_cube_.dump_nc(show_garbage);
   }
 };
 
+template <typename Summary, typename SummaryPolicy>
+struct SATSummaryPolicyAdaptor
+{
+  std::pair<size_t, size_t> last_bound_;
+  const SATGarbageCube<Summary> &sat_cube_;
+  SummaryPolicy &summary_policy_;
+  
+  SATSummaryPolicyAdaptor(
+      const SATGarbageCube<Summary> &sat_cube,
+      std::pair<size_t, size_t> last_bound,
+      SummaryPolicy &summary_policy)
+      : sat_cube_(sat_cube)
+      , last_bound_(last_bound)
+      , summary_policy_(summary_policy) {}
+
+  void add(const PersistentSAT<Summary> &v) {
+    Summary summ = v.sum(last_bound_.first, last_bound_.second);
+    summary_policy_.add(summ);
+  }
+};
+
+template <typename Summary>
+template <typename SummaryPolicy>
+void SATGarbageCube<Summary>::range_query(
+    SummaryPolicy &policy,
+    const std::vector<std::pair<size_t, size_t> > &bounds) const
+{
+  std::vector<std::pair<size_t, size_t> > garbage_bounds = drop_one(bounds);
+  SATSummaryPolicyAdaptor<Summary, SummaryPolicy> adaptor(
+      *this, bounds.back(), policy);
+  base_cube_.range_query(adaptor, garbage_bounds);
+}
+    
 
 /******************************************************************************/
 // tests
@@ -280,6 +373,7 @@ bool test_persistentsat();
 bool test_persistentsat_lower_bound();
 bool test_persistentsat_sum();
 bool test_persistentsat_addition();
+bool test_naivecube_and_satgarbagecube_equivalence();
 
 }
 

@@ -14,5 +14,6 @@ int main()
     RUN_TEST(nc2::test_persistentsat_lower_bound());
     RUN_TEST(nc2::test_persistentsat_sum());
     RUN_TEST(nc2::test_persistentsat_addition());
+    RUN_TEST(nc2::test_naivecube_and_satgarbagecube_equivalence());
   }
 }
