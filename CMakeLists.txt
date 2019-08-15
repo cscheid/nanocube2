@@ -24,5 +24,11 @@ add_executable(test_satgarbagecube
 target_include_directories(test_satgarbagecube PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 
+################################################################################
 
+add_executable(test_nyc_pickup
+  lib/immutable/array.cc
+  src/satgarbagecube.cc src/test_nyc_pickup.cc src/debug.cc src/utils.cc)
 
+target_include_directories(test_nyc_pickup PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
