@@ -12,5 +12,7 @@ int main()
     // ENABLE_TRACING;
     RUN_TEST(nc2::test_persistentsat());
     RUN_TEST(nc2::test_persistentsat_lower_bound());
+    RUN_TEST(nc2::test_persistentsat_sum());
+    RUN_TEST(nc2::test_persistentsat_addition());
   }
 }

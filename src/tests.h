@@ -2,9 +2,15 @@
 #define TESTS_H_
 
 #include "naivecube.h"
+#include "utils.h"
 #include <fstream>
 
 #define RUN_TEST(t) if (!t) { std::cerr << "test " << #t << " failed." << std::endl; exit(1); } else { std::cerr << "test " << #t << " passed." << std::endl; }
+
+#define CHECK_THAT(exp) if (!(exp)) {                             \
+  std::cerr << "check " << #exp << " failed." << std::endl;       \
+  return false;                                                   \
+}
 
 template <template <typename> class Cube>
 bool test_equivalence_to_naivecube(

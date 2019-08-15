@@ -11,6 +11,7 @@
 #include <iostream>
 #include <boost/assert.hpp>
 #include "debug.h"
+#include "basecube.h"
 
 namespace nc2 {
 
@@ -37,22 +38,27 @@ struct PersistentSAT
     return !(*this == other);
   }
   bool operator==(const PersistentSAT<T> &other) const{
-    return sat_->compare(other.sat_) == 0;
+    TRACE_BLOCK("operator==");
+    TRACE(*this);
+    TRACE(other);
+    int result = sat_->compare(other.sat_);
+    TRACE(result);
+    return result == 0;
   }
-  
-  PersistentSAT<T> add(size_t key, const T &val) {
+
+  SATRef add_expr(size_t key, const T &val) const {
     size_t sz = sat_->size();
     if (sz == 0) {
-      return PersistentSAT(sat_->push(std::make_pair(key, val)));
+      return sat_->push(std::make_pair(key, val));
     }
     const std::pair<size_t, T> &last = sat_->last();
     if (last.first < key) {
-      return PersistentSAT(sat_->push(std::make_pair(key, last.second + val)));
+      return sat_->push(std::make_pair(key, last.second + val));
     }
 
     // optimize for common case: updating the very last value.
     if (last.first == key) {
-      return PersistentSAT(sat_->set(sz-1, std::make_pair(key, last.second + val)));
+      return sat_->set(sz-1, std::make_pair(key, last.second + val));
     }
 
     // This is the slow path, we have a potentially O(n) operation
@@ -62,9 +68,11 @@ struct PersistentSAT
     BOOST_ASSERT(split_i < sat_->size());
     size_t split_key = sat_->get(split_i).first;
 
+    TRACE(split_i);
+    TRACE(sz);
     auto left  = sat_->slice(0, split_i);
     auto right = sat_->slice(split_i, sz);
-
+    
     right = right->modify(
         [&val, &right] (auto t) {
           auto bb = right->begin();
@@ -74,16 +82,30 @@ struct PersistentSAT
           }
         });
 
+    TRACE("past modify");
+    TRACE(split_key);
+    TRACE(key);
     if (split_key == key) {
-      return PersistentSAT(left->concat(right));
+      return left->concat(right);
+    } else if (left->size() == 0) {
+      return SAT::create({std::make_pair(key, val)})->concat(right);
     } else {
       const T &left_sup = left->last().second;
-      return PersistentSAT(left->push(std::make_pair(key, left_sup + val))->concat(right));
+      auto vec = left->push(std::make_pair(key, left_sup + val))->concat(right);
+      return vec;
     }
     BOOST_ASSERT(false);
   }
+  
+  PersistentSAT<T> add(size_t key, const T &val) const {
+    return PersistentSAT<T>(add_expr(key, val));
+  }
 
-  size_t lower_bound(size_t key) {
+  void add_mutate(size_t key, const T &val) {
+    sat_ = add_expr(key, val);
+  }
+  
+  size_t lower_bound(size_t key) const {
     if (sat_->size() == 0) {
       return 0;
     }
@@ -135,9 +157,85 @@ struct PersistentSAT
       return right_i;
   }
   
-  // T sum(size_t min, size_t max) {
-  // }
+  T sum(size_t min_key, size_t max_key) const {
+    if (sat_->size() == 0)
+      return T();
+    
+    size_t min_lb_i = lower_bound(min_key);
+    size_t max_lb_i = lower_bound(max_key);
+
+    if (min_lb_i == max_lb_i)
+      return T();
+
+    BOOST_ASSERT(max_lb_i > 0);
+    max_lb_i -= 1;
+
+    TRACE(min_key);
+    TRACE(max_key);
+    TRACE(min_lb_i);
+    TRACE(max_lb_i);
+
+    const T &max_v = sat_->get(max_lb_i).second;
+    TRACE(max_v);
+    if (min_lb_i == 0) {
+      BOOST_ASSERT(min_key <= sat_->first().first);
+      TRACE_BLOCK("sum from 0");
+      return max_v;
+    }
+    // min_lb_i > 0
+    if (min_key == sat_->get(min_lb_i).first) {
+      min_lb_i -= 1;
+    } else {
+      BOOST_ASSERT(min_key > sat_->get(min_lb_i).first);
+    }
+    
+    const T &min_v = sat_->get(min_lb_i).second;
+    TRACE(min_v);
+    {
+      TRACE_BLOCK("regular sum");
+      return max_v - min_v;
+    }
+  }
+
+  PersistentSAT<T> &operator+=(const PersistentSAT<T> &other) {
+    if (other.sat_->size() == 0) {
+      TRACE_BLOCK("they're empty");
+      return *this;
+    }
+    if (sat_->size() == 0) {
+      TRACE_BLOCK("we're empty");
+      *this = other;
+      return *this;
+    }
+
+    TRACE(*this); 
+    TRACE(other);
+    
+    auto left_v = other.sat_->firstValue();
+
+    add_mutate(left_v->value.first, left_v->value.second);
+
+    TRACE(*this);
+
+    // this is not very good, numerically speaking. But I don't
+    // know how else I could do it.
+    for (auto b = other.sat_->begin(1), e = other.sat_->end(); b!=e; ++b) {
+      add_mutate((*b).first, (*b).second - (*left_v).value.second);
+      TRACE(*this);
+      left_v = b.value();
+    }
+    return *this;
+  }
 };
+
+template <typename T>
+PersistentSAT<T> operator+(const PersistentSAT<T> &v1,
+                           const PersistentSAT<T> &v2)
+{
+  PersistentSAT<T> result(v1);
+  result += v2;
+  return result;
+}
 
 template <typename T>
 std::ostream &operator<<(std::ostream &os, const PersistentSAT<T> &sat)
@@ -151,10 +249,37 @@ std::ostream &operator<<(std::ostream &os, const PersistentSAT<T> &sat)
 }
 
 /******************************************************************************/
+
+template <typename T>
+std::vector<T> drop_one(const std::vector<T> &v)
+{
+  std::vector<T> cp(v);
+  cp.pop_back();
+  return cp;
+}
+
+template <typename Summary>
+struct GarbageCube: public BaseCube<Summary>
+{
+  explicit GarbageCube(const std::vector<size_t> &widths):
+      BaseCube<PersistentSAT<Summary> >(drop_one(widths)) {}
+
+  void insert(const std::vector<size_t> &addresses, const Summary &summary) {
+    // FIXME huh, this is annoyingly bad and annoyingly hard to fix nicely
+    std::vector<size_t> first_addresses(drop_one(addresses));
+
+    
+  }
+};
+
+
+/******************************************************************************/
 // tests
 
 bool test_persistentsat();
 bool test_persistentsat_lower_bound();
+bool test_persistentsat_sum();
+bool test_persistentsat_addition();
 
 }
 
