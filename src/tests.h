@@ -12,6 +12,60 @@
   return false;                                                   \
 }
 
+template <typename Summary,
+          template <typename> class Cube1,
+          template <typename> class Cube2>
+bool test_query_equivalence(
+    const Cube1<Summary> &c1,
+    const Cube2<Summary> &c2,
+    const std::vector<std::pair<size_t, size_t> > &range)
+{
+  nc2::CombineSummaryPolicy<int> p1, p2;
+  c1.range_query(p1, range);
+  c2.range_query(p2, range);
+
+  if (p1.total != p2.total) {
+    std::cerr << "Failure! with query (";
+    for (size_t k=0; k<c1.dims_.size(); ++k) {
+      std::cerr << "(" << range[k].first << "," << range[k].second << "),";
+    }
+    std::cerr << ")\n";
+        
+    std::cerr << "data structures disagree: cube1 " << p1.total << " vs cube2 " << p2.total << std::endl;
+
+    return false;
+  }
+  return true;
+}
+
+template <typename Summary,
+          template <typename> class Cube1,
+          template <typename> class Cube2>
+bool test_randomized_query_equivalence(
+    const Cube1<Summary> &c1,
+    const Cube2<Summary> &c2,
+    int n_queries)
+{
+  std::vector<size_t> widths;
+  for (auto &d: c1.dims_) {
+    widths.push_back(d.width);
+  }
+  for (size_t j=0; j<n_queries; ++j) {
+    std::vector<std::pair<size_t, size_t> > range;
+    size_t n_dims = widths.size();
+    for (size_t k=0; k<n_dims; ++k) {
+      size_t v1 = rand() % (1 << widths[k]),
+             v2 = rand() % (1 << widths[k]);
+      range.push_back(std::make_pair(std::min(v1, v2), std::max(v1, v2)));
+    }
+
+    if (!test_query_equivalence<Summary, Cube1, Cube2>(c1, c2, range))
+      return false;
+  }
+  return true;
+}
+
+
 template <template <typename> class Cube>
 bool test_equivalence_to_naivecube(
     const std::vector<size_t> &widths,

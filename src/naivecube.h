@@ -4,6 +4,7 @@
 #include <vector>
 #include <utility>
 #include <boost/assert.hpp>
+#include "debug.h"
 
 namespace nc2 {
 
@@ -18,13 +19,19 @@ class NaiveCube
   explicit NaiveCube(const std::vector<size_t> &widths):
       widths_(widths),
       values_() {}
-      
+
+  NaiveCube(const std::vector<size_t> &widths,
+           const std::vector<std::pair<std::vector<size_t>, Summary> > &values):
+      widths_(widths),
+      values_(values) {}
+
+  
   void insert(const std::vector<size_t> &address, const Summary &summary);
 
   template <typename SummaryPolicy>
   Summary range_query(
       SummaryPolicy &policy,
-      const std::vector<std::pair<size_t, size_t> > &bounds);
+      const std::vector<std::pair<size_t, size_t> > &bounds) const;
 };
 
 template <typename Summary>
@@ -38,7 +45,7 @@ template <typename Summary>
 template <typename SummaryPolicy>
 Summary NaiveCube<Summary>::range_query(
     SummaryPolicy &policy,
-    const std::vector<std::pair<size_t, size_t> > &bounds)
+    const std::vector<std::pair<size_t, size_t> > &bounds) const
 {
   Summary result = Summary();
 
@@ -51,12 +58,18 @@ Summary NaiveCube<Summary>::range_query(
       size_t range_b = bounds[i].first,
              range_e = bounds[i].second,
             position = v.first[i];
+      TRACE(i);
+      TRACE(range_b);
+      TRACE(position);
+      TRACE(range_e);
       if (position < range_b || position >= range_e) {
+        TRACE_BLOCK("outside");
         inside = false;
         break;
       }
     }
     if (inside) {
+      TRACE_BLOCK("inside");
       policy.add(v.second);
     }
   }
