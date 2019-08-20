@@ -38,8 +38,8 @@ bool tracing_enabled();
 
 #define TRACE(v) {                                              \
   if (tracing_enabled())                                        \
-    std::cerr << std::string(get_debug_indent(), ' ')           \
-              << rang::style::dim                               \
+    std::cerr << rang::style::dim                               \
+              << std::string(get_debug_indent(), '|')           \
               << __FILE__ << ":" << __LINE__ << " "             \
               << rang::style::reset                             \
               << #v                                             \
@@ -49,8 +49,8 @@ bool tracing_enabled();
 
 #define TRACE_BLOCK(exp)                                \
   if (tracing_enabled())                                \
-    std::cerr << std::string(get_debug_indent(), ' ')   \
-              << rang::style::dim                       \
+    std::cerr << rang::style::dim                       \
+              << std::string(get_debug_indent(), '|')   \
               << __FILE__ << ":" << __LINE__ << " "     \
               << rang::style::reset                     \
               << exp << std::endl;                      \

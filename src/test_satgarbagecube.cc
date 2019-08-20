@@ -1,6 +1,6 @@
 #include <iostream>
 #include "naivecube.h"
-#include "nanocube.h"
+// #include "nanocube.h"
 #include "satgarbagecube.h"
 #include "tests.h"
 

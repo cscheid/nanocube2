@@ -11,6 +11,23 @@
 
 namespace nc2 {
 
+bool test_nanocube_1()
+{
+  std::vector<size_t> widths { 3, 3 };
+  NanoCube<int> nanocube(widths);
+  nanocube.insert({0, 0}, 1);
+  nanocube.dump_nc(true);
+  nanocube.insert({7, 7}, 1);
+  nanocube.dump_nc(true);
+  // nanocube.insert({1, 6}, 1);
+  // nanocube.dump_nc(true);
+  // nanocube.insert({0, 3}, 1);
+  // nanocube.dump_nc(true);
+  // nanocube.insert({0, 6}, 1);
+  // nanocube.dump_nc(true);
+  return true;
+}
+
 bool test_naive_cube_and_nanocube_equivalence()
 {
   std::vector<size_t> widths { 4, 4 };
@@ -146,6 +163,12 @@ bool test_naive_cube_and_nanocube_equivalence_2()
     return false;
   }
   return true;
+}
+
+std::ostream &operator<<(std::ostream &os, const RefTrackedNCDimNode &n)
+{
+  os << n.l_ << ":" << n.r_ << ":" << n.n_;
+  return os;
 }
 
 };
