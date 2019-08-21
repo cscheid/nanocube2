@@ -9,8 +9,26 @@ set (CMAKE_CXX_STANDARD 17)
 
 ################################################################################
 
+add_executable(test_persistentsat
+  lib/immutable/array.cc
+  src/test_persistentsat.cc src/persistentsat.cc src/debug.cc src/utils.cc)
+
+target_include_directories(test_persistentsat PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+################################################################################
+
+add_executable(test_sparsesat
+  src/test_sparsesat.cc src/sparsesat.cc src/debug.cc src/utils.cc)
+
+target_include_directories(test_sparsesat PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+################################################################################
+
 add_executable(test_garbagecube
-  src/garbagecube.cc src/test_garbagecube.cc src/naivecube.cc src/debug.cc src/utils.cc)
+  lib/immutable/array.cc
+  src/garbagecube.cc src/persistentsat.cc src/test_garbagecube.cc src/naivecube.cc src/debug.cc src/utils.cc)
 
 target_include_directories(test_garbagecube PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
@@ -35,9 +53,20 @@ target_include_directories(test_nanocube PUBLIC
 
 ################################################################################
 
+add_executable(test_persistentsatcube
+  lib/immutable/array.cc
+  src/garbagecube.cc src/persistentsatcube.cc src/test_persistentsatcube.cc
+  src/naivecube.cc src/debug.cc src/utils.cc)
+
+target_include_directories(test_persistentsatcube PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+################################################################################
+
 add_executable(test_nyc_pickup
   lib/immutable/array.cc
   src/satgarbagecube.cc src/test_nyc_pickup.cc src/debug.cc src/utils.cc)
 
 target_include_directories(test_nyc_pickup PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+

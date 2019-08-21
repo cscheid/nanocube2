@@ -15,7 +15,7 @@ namespace nc2 {
 
 bool test_nanocube_1()
 {
-  std::vector<size_t> widths { 4, 4, 4 };
+  std::vector<size_t> widths { 4, 4, 4, 4 };
 
   for (size_t k=0; k<1000; ++k) {
     std::vector<std::pair<std::vector<size_t>, int> > values;

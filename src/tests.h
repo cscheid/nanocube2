@@ -3,6 +3,7 @@
 
 #include "naivecube.h"
 #include "utils.h"
+#include <iostream>
 #include <fstream>
 
 #define RUN_TEST(t) if (!t) { std::cerr << "test " << #t << " failed." << std::endl; exit(1); } else { std::cerr << "test " << #t << " passed." << std::endl; }
