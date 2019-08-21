@@ -81,6 +81,14 @@ struct NanoCube
   // at every fork.
   std::vector<std::vector<NCNodePointerType> > spine_cache_;
 
+  void report_storage()
+  {
+    for (size_t i=0; i<dims_.size(); ++i) {
+      std::cerr << "dim " << i << ": " << dims_[i].nodes_.size() << std::endl;
+    }
+    std::cerr << "summaries: " << summaries_.size() << std::endl;
+  }
+  
   void clear_spine()
   {
     TRACE_BLOCK("clear_spine");
@@ -495,15 +503,16 @@ struct NanoCube
       std::vector<NCNodePointerType> forks;
       update(addresses, 0, 0, summary, { base_root_ }, forks);
     }
-    if (!check_health()) {
-      {
-        std::ofstream of("bad-state.dot");
-        print_dot(of);
-        dump_nc(true);
-      }
-      std::cerr << "data structure doesn't pass health check!" << std::endl;
-      exit(1);
-    }
+    
+    // if (!check_health()) {
+    //   {
+    //     std::ofstream of("bad-state.dot");
+    //     print_dot(of);
+    //     dump_nc(true);
+    //   }
+    //   std::cerr << "data structure doesn't pass health check!" << std::endl;
+    //   exit(1);
+    // }
   }
 
   template <typename SummaryPolicy>
@@ -739,7 +748,6 @@ bool test_naivecube_and_nanocube_equivalence_1();
 bool test_naivecube_and_nanocube_equivalence_2();
 bool test_naivecube_and_nanocube_equivalence_3();
 bool test_naivecube_and_nanocube_equivalence_4();
-
 
 std::ostream &operator<<(std::ostream &os, const RefTrackedNCDimNode &n);
 

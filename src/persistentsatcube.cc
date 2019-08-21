@@ -17,9 +17,9 @@ struct PersistentSATGarbageCube: public PersistentSATCube<Summary, GarbageCube> 
 };
 
 template <typename Summary>
-struct PersistentSATNanoCube: public PersistentSATCube<Summary, GarbageCube> {
+struct PersistentSATNanoCube: public PersistentSATCube<Summary, NanoCube> {
   explicit PersistentSATNanoCube(const std::vector<size_t> &widths):
-      PersistentSATCube<Summary, GarbageCube>(widths) {}
+      PersistentSATCube<Summary, NanoCube>(widths) {}
 };
 
 bool test_naivecube_and_persistentsatgarbagecube_equivalence()

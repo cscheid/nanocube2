@@ -248,6 +248,7 @@ struct BaseCube
   };
 
   void dump_nc(bool show_garbage=false) {
+    std::cerr << "base_root: " << base_root_ << std::endl;
     for (int i=0; i<dims_.size(); ++i) {
       std::cerr << "Dim " << i << ":\n";
       const NCDim &dim = dims_[i];

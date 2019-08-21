@@ -8,19 +8,11 @@
 #include "sparsesat.h"
 #include "debug.h"
 #include "basecube.h"
+#include "utils.h"
 
 namespace nc2 {
 
 /******************************************************************************/
-
-template <typename T>
-std::vector<T> drop_one(const std::vector<T> &v)
-{
-  std::vector<T> cp(v);
-  cp.pop_back();
-  return cp;
-}
-
 
 template <typename Summary,
           template <typename> class Cube>
@@ -42,12 +34,21 @@ struct SparseSATCube
       SummaryPolicy &policy,
       const std::vector<std::pair<size_t, size_t> > &bounds) const;
 
-  void print_dot(std::ostream &os, bool draw_garbage=false) {
-    base_cube_.print_dot(os, draw_garbage);
+  void print_dot(std::ostream &os) {
+    base_cube_.print_dot(os);
   }
 
-  void dump_nc(bool show_garbage=false) {
-    base_cube_.dump_nc(show_garbage);
+  void dump_nc() {
+    base_cube_.dump_nc();
+  }
+
+  void report_storage() {
+    base_cube_.report_storage();
+    size_t total_size = 0;
+    for (size_t i=0; i<base_cube_.summaries_.size(); ++i) {
+      total_size += base_cube_.summaries_[i].cum_array_.size();
+    }
+    std::cerr << "actual summaries storage cost:\n  " << total_size << std::endl;
   }
   
 };

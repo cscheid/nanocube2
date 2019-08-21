@@ -68,6 +68,14 @@ inline bool path_refines_towards_right(size_t value, size_t bit, size_t width) {
   return get_bit(value, width - bit - 1);
 }
 
+template <typename T>
+inline std::vector<T> drop_one(const std::vector<T> &v)
+{
+  std::vector<T> cp(v);
+  cp.pop_back();
+  return cp;
+}
+
 /******************************************************************************/
 // stream_vector: a simple trick to be able to ostream out a vector directly
 template <typename T>

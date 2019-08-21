@@ -17,9 +17,9 @@ struct SparseSATGarbageCube: public SparseSATCube<Summary, GarbageCube> {
 };
 
 template <typename Summary>
-struct SparseSATNanoCube: public SparseSATCube<Summary, GarbageCube> {
+struct SparseSATNanoCube: public SparseSATCube<Summary, NanoCube> {
   explicit SparseSATNanoCube(const std::vector<size_t> &widths):
-      SparseSATCube<Summary, GarbageCube>(widths) {}
+      SparseSATCube<Summary, NanoCube>(widths) {}
 };
 
 bool test_naivecube_and_sparsesatgarbagecube_equivalence()

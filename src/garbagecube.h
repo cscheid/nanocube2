@@ -30,6 +30,15 @@ struct GarbageCube: public BaseCube<Summary>
   explicit GarbageCube(const std::vector<size_t> &widths):
       BaseCube<Summary>(widths) {}
 
+  void report_storage()
+  {
+    for (size_t i=0; i<this->dims_.size(); ++i) {
+      std::cerr << "dim " << i << ": " << this->dims_[i].nodes.size() << std::endl; 
+      std::cerr << "dim " << i << " free nodes: " << stream_vector(this->dims_[i].nodes.free_list) << std::endl;
+   }
+    std::cerr << "summaries: " << this->summaries_.size() << std::endl;
+  }
+  
   void insert(const std::vector<size_t> &addresses, const Summary &summary)
   {
     TRACE_BLOCK("insert " << stream_vector(addresses) << ": " << summary);
@@ -46,7 +55,9 @@ struct GarbageCube: public BaseCube<Summary>
 
     if (this->dims_[0].nodes.ref_counts[spine] == 0) {
       TRACE_BLOCK("clean spine");
-      this->clean_node(spine, 0);
+      this->make_node_ref(spine, 0);
+      this->release_node_ref(spine, 0);
+      // this->clean_node(spine, 0);
     }
   }
 };
