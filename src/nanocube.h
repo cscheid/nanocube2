@@ -9,8 +9,10 @@
 #include <boost/assert.hpp>
 #include "utils.h"
 #include <map>
+#include <set>
 #include <sstream>
 #include <fstream>
+#include <unordered_set>
 
 namespace nc2 {
 
@@ -27,6 +29,18 @@ struct RefTrackedNCDimNode
                       NCNodePointerType r,
                       NCNodePointerType n):
       refs_(), l_(l), r_(r), n_(n) {}
+
+  bool is_singleton() const {
+    return (l_ == -1 && r_ != -1) || (l_ != -1 && r_ == -1);
+  }
+
+  // if you call this while !is_singleton, UB!
+  NCNodePointerType singleton_child() const {
+    if (l_ != -1)
+      return r_;
+    else
+      return l_;
+  }
 };
 
 struct NCDim2
@@ -126,15 +140,14 @@ struct NanoCube
   {
     int i=0;
     for (auto &value: values) {
-      std::ostringstream fn;
-      fn << "nc" << ++i << ".dot";
-      
       insert(value.first, value.second);
-      dump_nc(true);
-      {
-        std::ofstream of(fn.str().c_str());
-        print_dot(of);
-      }
+      // std::ostringstream fn;
+      // fn << "nc" << ++i << ".dot";
+      // dump_nc(true);
+      // {
+      //   std::ofstream of(fn.str().c_str());
+      //   print_dot(of);
+      // }
     }
   }
 
@@ -142,6 +155,8 @@ struct NanoCube
                         NCNodePointerType node_to, size_t dim) {
     TRACE_BLOCK(rang::fg::blue << "release_node_ref " << rang::style::reset
                 << dim << " " << node_from << "->" << node_to);
+    if (node_to == -1)
+      return;
     auto &v = dims_[dim].nodes_[node_to].refs_;
     TRACE(stream_vector(v));
     v.erase(std::remove(v.begin(), v.end(), node_from), v.end());
@@ -200,43 +215,6 @@ struct NanoCube
     dims_[dim].nodes_[index].r_ = r;
     dims_[dim].nodes_[index].n_ = n;
   }
-
-  // NCNodePointerType
-  // insert_fresh_node(const Summary &summary, const std::vector<size_t> &addresses,
-  //                   size_t dim, size_t bit)
-  // {
-  //   TRACE_BLOCK("insert_fresh_node");
-    
-  //   size_t summary_index = summaries_.size();
-  //   summaries_.push_back(summary);
-    
-  //   NCNodePointerType new_summary_ref = NCNodePointerType(summary_index);
-  //   NCNodePointerType next_node = new_summary_ref;
-
-  //   for (int d = int(dims_.size())-1; d >= int(dim); d--) {
-  //     TRACE(d);
-  //     TRACE(addresses[d]);
-  //     size_t width = dims_[d].width;
-
-  //     // on first dimension, only create as many as needed to get to the bottom
-  //     size_t lo = dim == d ? bit : 0;
-
-  //     NCNodePointerType refine_node = add_node(d, -1, -1, next_node);
-  //     for (int b = width-1; b >= int(lo); --b) {
-  //       TRACE(b);
-  //       TRACE(width - b - 1);
-  //       bool right = path_refines_towards_right(addresses[d], b, width); // width - b - 1);
-  //       TRACE(right);
-  //       TRACE(refine_node);
-  //       refine_node = add_node(d,
-  //                              !right ? refine_node : -1,
-  //                              right ? refine_node : -1,
-  //                              next_node);
-  //     }
-  //     next_node = refine_node;
-  //   }
-  //   return next_node;
-  // }
 
   NCNodePointerType merge(
       size_t dim, NCNodePointerType index_1, NCNodePointerType index_2)
@@ -316,6 +294,7 @@ struct NanoCube
       // single refinement node, its next pointer matches that of the
       // refinement node.
   {
+    TRACE_BLOCK("fix_parents_next " << dim << " " << index << " " << next_node);
     const RefTrackedNCDimNode &n = dims_[dim].nodes_[index];
     std::vector<NCNodePointerType> parents_to_fix;
     for (auto &parent_i: n.refs_) {
@@ -333,6 +312,7 @@ struct NanoCube
       // set_node potentially n.refs_, but we're only
       // ever changing the next node pointers, and those
       // are not tracked by refcounting in any case.
+      TRACE_BLOCK("will call set_node");
       set_node(dim, parent_i, p.l_, p.r_, next_node);
       fix_parents_next(dim, parent_i, next_node);
     }
@@ -424,6 +404,7 @@ struct NanoCube
             NCNodePointerType l = dims_[dim].nodes_[node_to_fork_id].l_; 
             NCNodePointerType merged_next = merge(
                 dim+1, nodes[l].n_, nodes[spine_node].n_);
+            TRACE_BLOCK("will call set_node");
             set_node(dim, node_to_fork_id, l, spine_node, merged_next);
             fix_parents_next(dim, node_to_fork_id, merged_next);
           } else {
@@ -433,6 +414,7 @@ struct NanoCube
             NCNodePointerType r = dims_[dim].nodes_[node_to_fork_id].r_;
             NCNodePointerType merged_next = merge(
                 dim+1, nodes[r].n_, nodes[spine_node].n_);
+            TRACE_BLOCK("will call set_node");
             set_node(dim, node_to_fork_id, spine_node, r, merged_next);
             fix_parents_next(dim, node_to_fork_id, merged_next);
           }
@@ -447,30 +429,25 @@ struct NanoCube
         // 
         // action: merge the current refinement node with the spine, set all
         // marked nodes to result.
-        //
-        // Note that, unlike the case above, we add next to forks,
-        // because we actually are a real fork, and so "partially own"
-        // the next pointer
         TRACE_BLOCK("marked parents don't match refinement nodes");
         TRACE(stream_vector(p.second));
         TRACE(stream_vector(dims_[dim].nodes_[ref].refs_));
         NCNodePointerType spine_node = get_spine(summary, addresses, dim, bit+1);
         NCNodePointerType spine_next = dims_[dim].nodes_[spine_node].n_;
-        NCNodePointerType merged_ref  = merge(dim, ref, spine_node);
+        NCNodePointerType merged_ref = merge(dim, ref, spine_node);
 
         for (auto &node_to_update: p.second) {
-          NCNodePointerType node_next = dims_[dim].nodes_[node_to_update].n_;
-          // TRACE(stream_vector(forks));
-          // TRACE_BLOCK("adding to forks " << node_next);
-          // forks.push_back(node_next);
-          // TRACE(stream_vector(forks));
-          // NCNodePointerType merged_next = merge(dim+1, node_next, spine_next);
+          auto const &n = dims_[dim].nodes_[node_to_update];
           if (points_right) {
-            NCNodePointerType node_left = dims_[dim].nodes_[node_to_update].l_;
-            set_node(dim, node_to_update, node_left, merged_ref, node_next);
+            NCNodePointerType node_left = n.l_;
+            TRACE_BLOCK("will call set_node");
+            set_node(dim, node_to_update, node_left, merged_ref,
+                     n.is_singleton() ? dims_[dim].nodes_[merged_ref].n_ : n.n_);
           } else {
-            NCNodePointerType node_right = dims_[dim].nodes_[node_to_update].r_;
-            set_node(dim, node_to_update, merged_ref, node_right, node_next);
+            NCNodePointerType node_right = n.r_;
+            TRACE_BLOCK("will call set_node");
+            set_node(dim, node_to_update, merged_ref, node_right,
+                     n.is_singleton() ? dims_[dim].nodes_[merged_ref].n_ : n.n_);
           }
         }
       } else {
@@ -517,6 +494,15 @@ struct NanoCube
       clear_spine();
       std::vector<NCNodePointerType> forks;
       update(addresses, 0, 0, summary, { base_root_ }, forks);
+    }
+    if (!check_health()) {
+      {
+        std::ofstream of("bad-state.dot");
+        print_dot(of);
+        dump_nc(true);
+      }
+      std::cerr << "data structure doesn't pass health check!" << std::endl;
+      exit(1);
     }
   }
 
@@ -594,6 +580,100 @@ struct NanoCube
     }
   }
 
+  // returns false if there exist nodes not reachable from the root
+  bool check_all_nodes_reachable()
+  {
+    std::set<std::pair<size_t, size_t> > reached_nodes, nodes;
+    
+    nodes.insert(std::make_pair(0, base_root_));
+    while (nodes.size()) {
+      std::pair<size_t, size_t> top = *nodes.begin();
+      nodes.erase(*nodes.begin());
+      reached_nodes.insert(top);
+      if (top.first == dims_.size())
+        continue;
+      const RefTrackedNCDimNode &n = dims_[top.first].nodes_[top.second];
+      if (n.l_ != -1 &&
+          reached_nodes.find(std::make_pair(top.first, n.l_)) == reached_nodes.end())
+          nodes.insert(std::make_pair(top.first, n.l_));
+      if (n.r_ != -1 &&
+          reached_nodes.find(std::make_pair(top.first, n.r_)) == reached_nodes.end())
+          nodes.insert(std::make_pair(top.first, n.r_));
+      if (reached_nodes.find(std::make_pair(top.first + 1, n.n_)) == reached_nodes.end())
+        nodes.insert(std::make_pair(top.first + 1, n.n_));
+    }
+
+    for (int d=0; d<dims_.size(); ++d) {
+      for (int i=0; i<dims_[d].nodes_.size(); ++i) {
+        if (reached_nodes.find(std::make_pair(d, i)) == reached_nodes.end()) {
+          std::cerr << "Node " << d << " " << i << " is unreferenced!" << std::endl;
+          return false;
+        }
+      }
+    }
+
+    for (int i=0; i<summaries_.size(); ++i) {
+      if (reached_nodes.find(std::make_pair(dims_.size(), i)) == reached_nodes.end()) {
+        std::cerr << "Summary " << i << " is unreferenced!" << std::endl;
+        return false;
+      }
+    }
+
+    WHEN_TRACING {
+      std::cerr << "Nodes are all reachable." << std::endl;
+    }
+    return true;
+  }
+
+  bool check_ref_tracking_health()
+  {
+    for (int d=0; d<dims_.size(); ++d) {
+      std::map<size_t, std::vector<NCNodePointerType> > back_refs;
+      for (int i=0; i<dims_[d].nodes_.size(); ++i) {
+        const RefTrackedNCDimNode &n = dims_[d].nodes_[i];
+        back_refs[n.l_].push_back(i);
+        sort(back_refs[n.l_].begin(), back_refs[n.l_].end());
+        back_refs[n.r_].push_back(i);
+        sort(back_refs[n.r_].begin(), back_refs[n.r_].end());
+      }
+      for (int i=0; i<dims_[d].nodes_.size(); ++i) {
+        const RefTrackedNCDimNode &n = dims_[d].nodes_[i];
+        auto &v = back_refs[i];
+        if (n.refs_ != v) {
+          std::cerr << "Node " << d << " " << i <<
+              "has bad parent refs." << std::endl;
+          return false;
+        }
+      }
+    }
+    WHEN_TRACING {
+      std::cerr << "parent refs are correct." << std::endl;
+    }
+    return true;
+  }
+
+  bool check_singletons_next_points_to_childrens_next()
+  {
+    for (int d=0; d<dims_.size(); ++d) {
+      for (int i=0; i<dims_[d].nodes_.size(); ++i) {
+        const RefTrackedNCDimNode &n = dims_[d].nodes_[i];
+        if ((n.l_ == -1 && n.r_ != -1 && n.n_ != dims_[d].nodes_[n.r_].n_) ||
+            (n.l_ != -1 && n.r_ == -1 && n.n_ != dims_[d].nodes_[n.l_].n_)) {
+          std::cerr << "Singleton node " << d << " " << i
+                    << " has next pointer different from child." << std::endl;
+        }
+      }
+    }
+    return true;
+  }
+  
+  bool check_health()
+  {
+    return check_all_nodes_reachable() &&
+        check_ref_tracking_health() &&
+        check_singletons_next_points_to_childrens_next();
+  }
+
   
 };
 
@@ -655,10 +735,11 @@ void NanoCube<Summary>::range_query_internal(
 
 bool test_nanocube_1();
 bool test_naivecube_and_nanocube_equivalence();
+bool test_naivecube_and_nanocube_equivalence_1();
+bool test_naivecube_and_nanocube_equivalence_2();
 bool test_naivecube_and_nanocube_equivalence_3();
+bool test_naivecube_and_nanocube_equivalence_4();
 
-bool test_naive_cube_and_nanocube_equivalence_1();
-bool test_naive_cube_and_nanocube_equivalence_2();
 
 std::ostream &operator<<(std::ostream &os, const RefTrackedNCDimNode &n);
 

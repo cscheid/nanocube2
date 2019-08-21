@@ -15,19 +15,70 @@ namespace nc2 {
 
 bool test_nanocube_1()
 {
-  std::vector<size_t> widths { 3, 3 };
+  std::vector<size_t> widths { 4, 4, 4 };
+
+  for (size_t k=0; k<1000; ++k) {
+    std::vector<std::pair<std::vector<size_t>, int> > values;
+    for (size_t i=0; i<5; ++i) {
+      std::vector<size_t> p;
+      for (size_t j=0; j<10; ++j)
+        p.push_back(rand() % 8);
+      values.push_back(std::make_pair(p, 1));
+    }
+    // {
+    //   std::make_pair(std::vector<size_t>({0, 0}), 1),
+    //   std::make_pair(std::vector<size_t>({7, 7}), 1),
+    //   std::make_pair(std::vector<size_t>({1, 6}), 1),
+    //   std::make_pair(std::vector<size_t>({0, 3}), 1),
+    //   std::make_pair(std::vector<size_t>({0, 6}), 1)
+    // };
+    NanoCube<int>  nanocube (widths, values);
+    NaiveCube<int> naivecube(widths, values);
+    if (!test_randomized_query_equivalence(nanocube, naivecube, 1000)) {
+      std::cerr << "points:" << std::endl;
+      for (int i=0; i<values.size(); ++i) {
+        std::cerr << stream_vector(values[i].first) << std::endl;
+      }
+      {
+        std::ofstream of("nc.dot");
+        nanocube.print_dot(of);
+      }
+      return false;
+    }
+  }
+  return true;
+}
+
+bool test_naivecube_and_nanocube_equivalence_4()
+{
+  std::vector<size_t> widths { 3, 3, 3 };
 
   std::vector<std::pair<std::vector<size_t>, int> > values {
-    std::make_pair(std::vector<size_t>({0, 0}), 1),
-    std::make_pair(std::vector<size_t>({7, 7}), 1),
-    std::make_pair(std::vector<size_t>({1, 6}), 1),
-    std::make_pair(std::vector<size_t>({0, 3}), 1),
-    std::make_pair(std::vector<size_t>({0, 6}), 1)
+    std::make_pair(std::vector<size_t>({7, 1, 7}), 1),
+    std::make_pair(std::vector<size_t>({6, 2, 3}), 1),
+    std::make_pair(std::vector<size_t>({0, 0, 7}), 1),
+    std::make_pair(std::vector<size_t>({5, 2, 6}), 1),
+    std::make_pair(std::vector<size_t>({4, 1, 0}), 1),
+    std::make_pair(std::vector<size_t>({4, 0, 1}), 1),
+    std::make_pair(std::vector<size_t>({3, 0, 3}), 1),
+    std::make_pair(std::vector<size_t>({4, 3, 1}), 1),
+    // std::make_pair(std::vector<size_t>({0, 2, 6}), 1),
+    // std::make_pair(std::vector<size_t>({1, 7, 6}), 1)
   };
-  NanoCube<int>  nanocube (widths, values);
+
+  NanoCube<int>nanocube (widths, values);
+  // {
+  //   std::ofstream of("nc.dot");
+  //   nanocube.print_dot(of);
+  // }
   NaiveCube<int> naivecube(widths, values);
-  return test_randomized_query_equivalence(nanocube, naivecube, 10000);
+  return test_query_equivalence(nanocube, naivecube,
+                                { std::make_pair(2, 7),
+                                  std::make_pair(0, 5),
+                                  std::make_pair(0, 6) });
+  
 }
+
 
 bool test_naivecube_and_nanocube_equivalence_3()
 {
@@ -37,13 +88,13 @@ bool test_naivecube_and_nanocube_equivalence_3()
     std::make_pair(std::vector<size_t>({10, 1}), 1),
     std::make_pair(std::vector<size_t>({0, 5}), 1),
     std::make_pair(std::vector<size_t>({2, 0}), 1),
-    std::make_pair(std::vector<size_t>({10, 1}), 1)
-    // std::make_pair(std::vector<size_t>({13, 11}), 1),
-    // std::make_pair(std::vector<size_t>({5, 14}), 1),
-    // std::make_pair(std::vector<size_t>({9, 3}), 1),
-    // std::make_pair(std::vector<size_t>({4, 9}), 1),
-    // std::make_pair(std::vector<size_t>({7, 13}), 1),
-    // std::make_pair(std::vector<size_t>({12, 9}), 1)
+    std::make_pair(std::vector<size_t>({10, 1}), 1),
+    std::make_pair(std::vector<size_t>({13, 11}), 1),
+    std::make_pair(std::vector<size_t>({5, 14}), 1),
+    std::make_pair(std::vector<size_t>({9, 3}), 1),
+    std::make_pair(std::vector<size_t>({4, 9}), 1),
+    std::make_pair(std::vector<size_t>({7, 13}), 1),
+    std::make_pair(std::vector<size_t>({12, 9}), 1)
   };
 
   NanoCube<int>  nanocube (widths, values);
@@ -61,12 +112,12 @@ bool test_naivecube_and_nanocube_equivalence_3()
 bool test_naivecube_and_nanocube_equivalence()
 {
   std::vector<size_t> widths { 4, 4 };
-  for (size_t i=0; i<100000; ++i) {
+  for (size_t i=0; i<10000; ++i) {
     NaiveCube<int> naivecube(widths);
     NanoCube<int> nanocube(widths);
     std::vector<size_t> points;
 
-    for (int j=0; j<4; ++j) {
+    for (int j=0; j<10; ++j) {
       size_t v1 = rand() % 16, v2 = rand() % 16;
       points.push_back(v1);
       points.push_back(v2);
@@ -164,11 +215,11 @@ bool test_naivecube_and_nanocube_equivalence_2()
     nanocube.insert(e, 1); 
   }
 
-  nanocube.dump_nc();
-  {
-    std::ofstream out("nc.dot");
-    nanocube.print_dot(out);
-  }
+  // nanocube.dump_nc();
+  // {
+  //   std::ofstream out("nc.dot");
+  //   nanocube.print_dot(out);
+  // }
 
   std::vector<std::pair<size_t, size_t> > range {
     std::make_pair(1, 15),
