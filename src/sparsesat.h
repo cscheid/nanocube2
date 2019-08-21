@@ -111,13 +111,17 @@ struct SparseSAT
     TRACE(min_key);
     TRACE(max_key);
     BOOST_ASSERT(max_lb_i > 0);
+
+    if (min_lb_i == cum_array_.size())
+      return T();
+    
     static T zero = T();
     const T &max_v =
         (max_lb_i == cum_array_.size()) ? cum_array_.back().second :
-        (max_key <= cum_array_[max_lb_i].first) ? (max_lb_i == 0 ? zero : cum_array_[max_lb_i-1].second) : cum_array_[max_lb_i].second;
+        (max_key <= cum_array_.at(max_lb_i).first) ? (max_lb_i == 0 ? zero : cum_array_.at(max_lb_i-1).second) : cum_array_.at(max_lb_i).second;
     const T &min_v =
-        (min_key <= cum_array_[min_lb_i].first && min_lb_i == 0) ? zero :
-        (min_key <= cum_array_[min_lb_i].first) ? cum_array_[min_lb_i-1].second : cum_array_[min_lb_i].second;
+        (min_key <= cum_array_.at(min_lb_i).first && min_lb_i == 0) ? zero :
+        (min_key <= cum_array_.at(min_lb_i).first) ? cum_array_.at(min_lb_i-1).second : cum_array_[min_lb_i].second;
     TRACE(min_v);
     TRACE(max_v);
     return max_v - min_v;

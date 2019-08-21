@@ -1,11 +1,11 @@
-#ifndef PERSISTENTSATCUBE_H_
-#define PERSISTENTSATCUBE_H_
+#ifndef SPARSESATCUBE_H_
+#define SPARSESATCUBE_H_
 
 #include <immutable/array.h>
 #include <utility>
 #include <iostream>
 #include <boost/assert.hpp>
-#include "persistentsat.h"
+#include "sparsesat.h"
 #include "debug.h"
 #include "basecube.h"
 
@@ -24,15 +24,15 @@ std::vector<T> drop_one(const std::vector<T> &v)
 
 template <typename Summary,
           template <typename> class Cube>
-struct PersistentSATCube
+struct SparseSATCube
 {
-  Cube<PersistentSAT<Summary> > base_cube_;
+  Cube<SparseSAT<Summary> > base_cube_;
 
-  explicit PersistentSATCube(const std::vector<size_t> &widths):
+  explicit SparseSATCube(const std::vector<size_t> &widths):
       base_cube_(drop_one(widths)) {}
 
   void insert(const std::vector<size_t> &addresses, const Summary &summary) {
-    PersistentSAT<Summary> singleton;
+    SparseSAT<Summary> singleton;
     singleton.add_mutate(addresses.back(), summary);
     base_cube_.insert(addresses, singleton);
   }
@@ -55,21 +55,21 @@ struct PersistentSATCube
 template <typename Summary,
           template <typename> class Cube,
           typename SummaryPolicy>
-struct PersistentSATSummaryPolicyAdaptor
+struct SparseSATSummaryPolicyAdaptor
 {
   std::pair<size_t, size_t> last_bound_;
-  const PersistentSATCube<Summary, Cube> &sat_cube_;
+  const SparseSATCube<Summary, Cube> &sat_cube_;
   SummaryPolicy &summary_policy_;
   
-  PersistentSATSummaryPolicyAdaptor(
-      const PersistentSATCube<Summary, Cube> &sat_cube,
+  SparseSATSummaryPolicyAdaptor(
+      const SparseSATCube<Summary, Cube> &sat_cube,
       std::pair<size_t, size_t> last_bound,
       SummaryPolicy &summary_policy)
       : sat_cube_(sat_cube)
       , last_bound_(last_bound)
       , summary_policy_(summary_policy) {}
 
-  void add(const PersistentSAT<Summary> &v) {
+  void add(const SparseSAT<Summary> &v) {
     Summary summ = v.sum(last_bound_.first, last_bound_.second);
     summary_policy_.add(summ);
   }
@@ -78,12 +78,12 @@ struct PersistentSATSummaryPolicyAdaptor
 template <typename Summary,
           template <typename> class Cube>
 template <typename SummaryPolicy>
-void PersistentSATCube<Summary, Cube>::range_query(
+void SparseSATCube<Summary, Cube>::range_query(
     SummaryPolicy &policy,
     const std::vector<std::pair<size_t, size_t> > &bounds) const
 {
   std::vector<std::pair<size_t, size_t> > garbage_bounds = drop_one(bounds);
-  PersistentSATSummaryPolicyAdaptor<Summary, Cube, SummaryPolicy> adaptor(
+  SparseSATSummaryPolicyAdaptor<Summary, Cube, SummaryPolicy> adaptor(
       *this, bounds.back(), policy);
   base_cube_.range_query(adaptor, garbage_bounds);
 }
@@ -91,8 +91,8 @@ void PersistentSATCube<Summary, Cube>::range_query(
 /******************************************************************************/
 // tests
 
-bool test_naivecube_and_persistentsatgarbagecube_equivalence();
-bool test_naivecube_and_persistentsatnanocube_equivalence();
+bool test_naivecube_and_sparsesatgarbagecube_equivalence();
+bool test_naivecube_and_sparsesatnanocube_equivalence();
 
 };
 

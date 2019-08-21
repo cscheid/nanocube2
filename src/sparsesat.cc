@@ -71,6 +71,12 @@ bool test_sparsesat_sum()
     s = s.add(1, 1).add(11, 1);
     CHECK_THAT(s.sum(5, 13) == 1);
   }
+
+  {
+    SparseSAT<int> s;
+    s.add_mutate(8, 1);
+    CHECK_THAT(s.sum(11, 13) == 0);
+  }
   return true;
 }
 
